@@ -201,7 +201,7 @@ capture.output(otu, file = paste(output_location,"OTUs\\otu_table.txt",sep=""))
 
 ```
 
-#2 Prune for bacteria only, Create prefilter summary files
+#Prune for bacteria only, Create prefilter summary files
 ```{r}
 #Only bacteria
 physeq_filt<-physeq_complete %>%
@@ -218,7 +218,7 @@ s<-summary(sample_data(physeq_filt)$Sample.Cat)
 capture.output(s, file = paste(output_location,"Data\\Summary\\summary_prefilter_sample.cat.txt",sep=""))
 ```
 
-#3. Filter taxa >.001 ; Determine read counts and plot
+#Filter taxa >.001 ; Determine read counts and plot
 ```{r}
 physeq_filt = filter_taxa(physeq_filt, function(x) mean(x) > 1e-2, TRUE)
 physeq_filt #note new taxa number and sample number
@@ -263,7 +263,7 @@ print(p1)
 dev.off()
 ```
 
-#4. Filter samples with less than 10000 reads: Review filtered read counts and plot
+#Filter samples with less than 10000 reads: Review filtered read counts and plot
 ```{r}
 physeq_filt = prune_samples(sample_sums(physeq_filt) > 10000, physeq_filt)
 
@@ -319,26 +319,26 @@ s<-summary(sample_data(physeq_filt)$Sample.Cat)
 capture.output(s, file = paste(output_location,"Data\\Summary\\summary_postfilter_sample.cat.txt",sep=""))
 ```
 
-#5. Subset filtered data, sample to specified depth
+#Subset filtered data, sample to specified depth
 ```{r}
 #Only samples
 physeq_filt_seqcontrols<-physeq_filt %>%
   subset_samples(
-    Sample.Type=="Seq.Control" 
+    Sample_Cat=="SeqControl" 
   )
 physeq_filt_seqcontrols #verify sample number
 
 #Only controls
 physeq_filt_extcontrols<-physeq_filt %>%
   subset_samples(
-    Sample.Type == "Ext.Blank" | Sample.Type=="Ext.Control"
+    Sample_Cat == "ExtBlank" | Sample_Cat=="Ext.Control"
   )
 physeq_filt_extcontrols #verify sample number
 
 #Only replicates
 physeq_filt_study<-physeq_filt %>%
   subset_samples(
-    Sample.Type == "Study" 
+    Sample_Cat == "Study" 
   )
 physeq_filt_study #verify sample number
 
@@ -363,7 +363,7 @@ print(p1)
 dev.off()
 ```
 
-#6 Alpha Diversity - All samples, Run ID
+#Alpha Diversity - All samples, Run ID
 ```{r}
 # Scale reads to even depth 
 physeq_scale<-physeq_filt %>%
@@ -391,7 +391,7 @@ print(p)
 dev.off()
 ```
 
-#7 Save data tables for downstream use - Genus
+#Save data tables for downstream use - Genus
 ```{r}
 phylos_obs<-list(physeq_filt_seqcontrols,physeq_filt_extcontrols,physeq_filt_study)
 count=1
