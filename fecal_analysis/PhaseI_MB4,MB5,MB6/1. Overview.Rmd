@@ -77,21 +77,23 @@ for (a in project_name){
  metadata<-read.table(paste(data_location,manifest_name[count],sep="\\"),sep='\t', header=T, row.names=1, comment="")
  
  #Create phylo object
- if(count==1){
-  physeq_complete<-phyloseq(otu_table(otus$data, taxa_are_rows = T), phy_tree(tree$data), tax_table(tax_table), sample_data(metadata))
+ paste("physeq_complete",count,sep="")<-phyloseq(otu_table(otus$data, taxa_are_rows = T), phy_tree(tree$data), tax_table(tax_table), sample_data(metadata))
  
- } else{
-  physeq_complete2<-phyloseq(otu_table(otus$data, taxa_are_rows = T), phy_tree(tree$data), tax_table(tax_table), sample_data(metadata))
-  }
  count=count+1
 }
+```
 
-
+#Filter and merge phylo objects
+```{r}
+count=1
 #Create filtered list of samples
-samplelist1_passed_q2<-as.list(sample_names(sample_data(physeq_complete)))
-samplelist2_passed_q2<-as.list(sample_names(sample_data(physeq_complete2)))
-interset<-intersect(samplelist1_passed_q2,samplelist2_passed_q2)
+for (a in project_name){
 
+ paste("samplelist1_passed_count",sep="")<-as.list(sample_names(sample_data(physeq_complete)))
+ samplelist2_passed_q2<-as.list(sample_names(sample_data(physeq_complete2)))
+ interset<-intersect(samplelist1_passed_q2,samplelist2_passed_q2)
+}
+ 
 for (a in interset){ #Remove all duplicate samples
  physeq_complete2<-subset_samples(physeq_complete2,sample_names(physeq_complete2)!=a)
 }
