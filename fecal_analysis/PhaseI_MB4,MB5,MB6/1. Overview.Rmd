@@ -41,6 +41,12 @@ library(ggplot2)
 ############### 
 #1.Create PhySeq Object
 ```{r}
+#Create directories
+dir.create(paste(output_location,"Data\\Summary",sep=""))
+dir.create(paste(output_location,"Graphs\\Summary",sep=""))
+dir.create(paste(output_location,"OTUs",sep=""))
+
+
 count=1
 for (a in project_name){
  project_location = paste("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\",a,sep="")
@@ -345,11 +351,11 @@ for (a in phylos_obs){
  colnames(gentab)<-gentab[1,]
  gentab<-gentab[-1,]
  
- file_name =paste(output_location,"OTUs\\otu_Summary_",count,".csv",sep="")
+ file_name =paste(output_location,"OTUs\\otu_Summary_genus",count,".csv",sep="")
  write.csv(gentab,file_name)
  
  metatab <- as.data.frame(sample_data(a))
- file_name =paste(output_location,"OTUs\\metadata_Summary_",count,".csv",sep="")
+ file_name =paste(output_location,"OTUs\\metadata_Summary_genus",count,".csv",sep="")
  #write.csv(metatab,file_name)
  count=count+1
 }
