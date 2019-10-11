@@ -7,16 +7,12 @@ editor_options:
 
 #To Update
 ```{r}
-parent_dir = c("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\")
-project_name=c("Project_NP0084_MB4\\HigherGenus")
-manifest_name=c("NP0084-MB4_08_29_19_metadata_seq.txt")
-
 output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_SeqOnly\\")
 
-taxa_level=c("genus")
+taxa_level=c("family")
 
-manifest_name="metadata_Summary_1.csv"
-taxa_file=paste("taxa_Summary_",genus_level,"1.csv",sep="")
+manifest_name=paste("metadata_Summary_",taxa_level,"1.csv",sep="")
+taxa_file=paste("taxa_Summary_",taxa_level,"1.csv",sep="")
 
 control_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Controls\\Taxonomy\\")
 ```
@@ -50,17 +46,14 @@ control_expect <- read.table(paste(control_location,"Taxonomy_",taxa_level,"_201
 rownames(control_expect) <- unique(control_expect[,"Genus"])
 ```
 
-#2. Load OTU and metadata tables
+#Load OTU and metadata tables
 ```{r}
-#Create location link
-project_location= paste("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\",project_name,sep="")
-
 #Read in database with variable information
-metadata_baseline <- read.table(paste(project_location,"\\Output\\R\\OTUs\\",manifest_name,sep=""),sep=",",header= TRUE)
+metadata_baseline <- read.table(paste(output_location,"Taxa\\",manifest_name,sep=""),sep=",",header= TRUE)
 rownames(metadata_baseline)<-metadata_baseline$X
 metadata_baseline<-metadata_baseline[-1]
 
-otu_baseline_complete <- read.table(paste(project_location,"\\Output\\R\\OTUs\\",taxa_file,sep=""),sep=",",header= TRUE)
+otu_baseline_complete <- read.table(paste(output_location,"Taxa\\",taxa_file,sep=""),sep=",",header= TRUE)
 rownames(otu_baseline_complete)<-otu_baseline_complete$X
 otu_baseline_complete<-otu_baseline_complete[-1]
 
