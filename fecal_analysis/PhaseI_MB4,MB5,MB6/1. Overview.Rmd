@@ -393,7 +393,8 @@ dev.off()
 
 #Save data tables for downstream use - Genus
 ```{r}
-phylos_obs<-list(physeq_filt_seqcontrols,physeq_filt_extcontrols,physeq_filt_study)
+#phylos_obs<-list(physeq_filt_seqcontrols,physeq_filt_extcontrols,physeq_filt_study)
+phylos_obs<-list(physeq_filt_seqcontrols)
 count=1
 
 for (a in phylos_obs){
@@ -423,12 +424,12 @@ for (a in phylos_obs){
  colnames(gentab)<-gentab[1,]
  gentab<-gentab[-1,]
  
- file_name =paste(output_location,"OTUs\\otu_Summary_genus",count,".csv",sep="")
+ file_name =paste(output_location,"Taxa\\taxa_Summary_genus",count,".csv",sep="")
  write.csv(gentab,file_name)
  
  metatab <- as.data.frame(sample_data(a))
- file_name =paste(output_location,"OTUs\\metadata_Summary_genus",count,".csv",sep="")
- #write.csv(metatab,file_name)
+ file_name =paste(output_location,"Taxa\\metadata_Summary_genus",count,".csv",sep="")
+ write.csv(metatab,file_name)
  count=count+1
 }
 
@@ -438,9 +439,11 @@ for (a in phylos_obs){
 #3: Study
 ```
 
-#8 Save data tables for downstream use - Family
+#Save data tables for downstream use - Family
 ```{r}
-phylos_obs<-list(physeq_filt_seqcontrols,physeq_filt_extcontrols,physeq_filt_study)
+#phylos_obs<-list(physeq_filt_seqcontrols,physeq_filt_extcontrols,physeq_filt_study)
+phylos_obs<-list(physeq_filt_seqcontrols)
+
 count=1
 
 for (a in phylos_obs){
@@ -470,11 +473,11 @@ for (a in phylos_obs){
  colnames(famtab)<-famtab[1,]
  famtab<-famtab[-1,]
  
- file_name =paste(output_location,"OTUs\\otu_Summary_family",count,".csv",sep="")
+ file_name =paste(output_location,"Taxa\\taxa_Summary_family",count,".csv",sep="")
  write.csv(famtab,file_name)
  
  metatab <- as.data.frame(sample_data(a))
- file_name =paste(output_location,"OTUs\\metadata_Summary_family",count,".csv",sep="")
+ file_name =paste(output_location,"Taxa\\metadata_Summary_family",count,".csv",sep="")
  write.csv(metatab,file_name)
  count=count+1
 }
