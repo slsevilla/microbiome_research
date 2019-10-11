@@ -11,7 +11,7 @@ parent_dir = c("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\")
 project_name=c("Project_NP0084_MB4\\HigherGenus")
 manifest_name=c("NP0084-MB4_08_29_19_metadata_seq.txt")
 
-output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R\\")
+output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_SeqOnly\\")
 
 sample_depth=100000
 reference_db="greengenes"
@@ -77,67 +77,128 @@ for (a in project_name){
  metadata<-read.table(paste(data_location,manifest_name[count],sep="\\"),sep='\t', header=T, row.names=1, comment="")
  
  #Create phylo object
- paste("physeq_complete",count,sep="")<-phyloseq(otu_table(otus$data, taxa_are_rows = T), phy_tree(tree$data), tax_table(tax_table), sample_data(metadata))
+ phyloname<-paste("physeq_complete",count,sep="")
+ assign(phyloname,phyloseq(otu_table(otus$data, taxa_are_rows = T), phy_tree(tree$data), tax_table(tax_table), sample_data(metadata)))
  
+ phylo_number=count
  count=count+1
 }
 ```
 
-#Filter and merge phylo objects
+#Filter samples
 ```{r}
 count=1
 #Create filtered list of samples
 for (a in project_name){
+ sample_name<-paste("samplelist1_passed_",count,sep="")
+ phy_name<-paste("physeq_complete",count,sep="")
+ assign(sample_name,as.list(sample_names(sample_data(get(phy_name)))))
+ 
+ if(count>1){ #if there are more than one dataset, merge the sample data with overlaps only
+  merge_name<-paste("samplelist1_passed_",count-1,sep="")
+  
+  interset<-intersect(get(sample_name),get(merge_name))
+ } else{
+  interset<-get(sample_name)
+ }
+ count=count+1
+}
 
- paste("samplelist1_passed_count",sep="")<-as.list(sample_names(sample_data(physeq_complete)))
- samplelist2_passed_q2<-as.list(sample_names(sample_data(physeq_complete2)))
- interset<-intersect(samplelist1_passed_q2,samplelist2_passed_q2)
+#Remove all samples duplicated in phylo objects >1 - do not need repeated samples
+count=1 
+for (a in interset){ #
+ phy_name<-paste("physeq_complete",count,sep="")
+ 
+ if(phylo_number>1){
+  assign(phy_name,subset_samples(get(phy_name),sample_names(get(phy_name))!=a)) 
+ }
+ count=count+1
 }
  
-for (a in interset){ #Remove all duplicate samples
- physeq_complete2<-subset_samples(physeq_complete2,sample_names(physeq_complete2)!=a)
-}
+#Remove quarantined samples
+count=1
+for (a in project_name){
+ phy_name<-paste("physeq_complete",count,sep="")
  
-physeq_complete<-subset_samples(physeq_complete,External.ID!="Quarantined")#Remove quarantined samples
+ assign(phy_name,subset_samples(get(phy_name),External.ID!="Quarantined"))
+ count=count+1
+}
 
-#Create merges of OTU, Tax, Sample for final phylo object
-otu<-as.data.frame(otu_table(physeq_complete))
-otu2<-as.data.frame(otu_table(physeq_complete2))
+#Merge Sample Data
+sampledata1<-as.data.frame(sample_data(physeq_complete1))
 
-for (a in colnames(otu2)){
- for (b in rownames(otu2)){
-  otu[b,a]<-otu2[b,a]
+count=2
+if(phylo_number>1){
+ sample_name<-paste("sampledata",count,sep="")
+ phy_name<-paste("physeq_complete",count,sep="")
+ assign(sample_name,as.data.frame(sample_table(get(phy_name))))
+ 
+ for (a in colnames(get(sample_name))){
+  for (b in rownames(get(sample_name))){
+   sampledata1[b,a]<-get(sample_name)[b,a]
+  }
+ }
+ count=count+1
+}
+
+```
+
+#Create merges of OTU, Tax for final phylo object
+```{r}
+#Create OTU tables
+count=1
+for (a in project_name){
+ phy_name<-paste("physeq_complete",count,sep="")
+ otu_name<-paste("otu",count,sep="")
+ 
+ assign(otu_name,as.data.frame(otu_table(get(phy_name))))
+ count=count+1
+}
+
+#Merge OTU tables
+count=2
+if(phylo_number>1){
+ otu_name<-paste("otu",count,sep="")
+ 
+ for (a in colnames(get(otu_name))){
+  for (b in rownames(get(otu_name))){
+   otu1[b,a]<-get(otu_name)[b,a]
+  }
  }
 }
-otu<-otu_table(otu,taxa_are_rows = TRUE)
+otu<-otu_table(otu1,taxa_are_rows = TRUE)
 
-tax<-as.data.frame(tax_table(physeq_complete))
-tax2<-as.data.frame(tax_table(physeq_complete2))
+#Merge taxa tables
+tax1<-as.data.frame(tax_table(physeq_complete1))
 
-for (a in colnames(tax2)){
- for (b in rownames(tax2)){
-  tax[b,a]<-tax2[b,a]
+count=2
+if(phylo_number>1){
+ tax_name<-paste("tax",count,sep="")
+ phy_name<-paste("physeq_complete",count,sep="")
+ assign(tax_name,as.data.frame(tax_table(get(phy_name))))
+ 
+ for (a in colnames(get(tax_name))){
+  for (b in rownames(get(tax_name))){
+   tax1[b,a]<-get(tax_name)[b,a]
+  }
  }
+ count=count+1
 }
-tax<-as.matrix(tax) #Convert to matrix - str that phyloseq requires
+
+tax<-as.matrix(tax1) #Convert to matrix - str that phyloseq requires
 tax<-tax_table(tax)
 
-sampledata<-as.data.frame(sample_data(physeq_complete))
-sampledata2<-as.data.frame(sample_data(physeq_complete2))
 
-for (a in colnames(sampledata2)){
- for (b in rownames(sampledata2)){
-  sampledata[b,a]<-sampledata2[b,a]
- }
-}
+#Merge final object
+physeq_complete<-phyloseq(otu,tax,sampledata1) #merged phylo object
+random_tree = rtree(ntaxa(physeq_complete1), rooted=TRUE, tip.label=taxa_names(physeq_complete1))
+physeq_complete<-phyloseq(otu,tax,sampledata1,random_tree) #merged phylo object
 
-physeq_complete<-phyloseq(otu,tax,sampledata) #merged phylo object
-random_tree = rtree(ntaxa(physeq_complete), rooted=TRUE, tip.label=taxa_names(physeq_complete))
-physeq_complete<-phyloseq(otu,tax,sampledata,random_tree) #merged phylo object
-
-
+#Output
 s<-summary(sample_data(physeq_complete))
 capture.output(s, file = paste(output_location,"Data\\Summary\\summary_prefilter.txt",sep=""))
+capture.output(otu, file = paste(output_location,"OTUs\\otu_table.txt",sep=""))
+
 ```
 
 #2 Prune for bacteria only, Create prefilter summary files
