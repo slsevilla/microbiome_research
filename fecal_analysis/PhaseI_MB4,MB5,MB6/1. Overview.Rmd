@@ -7,10 +7,15 @@ editor_options:
 
 #To Update
 ```{r}
-project_name=c("Project_NP0084-MB4_5_pt6","Project_NP0084-MB4_5_pt6_2")
-manifest_name=c("NP0084-MB4_08_29_19_metadata.txt","NP0084-MB4_09_02_19_metadata.txt")
+parent_dir = c("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\")
+project_name=c("Project_NP0084_MB4\\HigherGenus")
+manifest_name=c("NP0084-MB4_08_29_19_metadata_seq.txt")
+
 output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R\\")
+
 sample_depth=100000
+reference_db="greengenes"
+
 ```
 
 #Load required libraries
@@ -39,26 +44,29 @@ library(ggplot2)
 
 #Analysis
 ############### 
-#1.Create PhySeq Object
+#Directory Creation
 ```{r}
 #Create directories
 dir.create(paste(output_location,"Data\\Summary",sep=""))
 dir.create(paste(output_location,"Graphs\\Summary",sep=""))
 dir.create(paste(output_location,"OTUs",sep=""))
+```
 
 
+#Create PhySeq Object
+```{r}
 count=1
 for (a in project_name){
- project_location = paste("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\",a,sep="")
+ data_location = paste(parent_dir,a,sep="")
 
  #Read OTUS
- otus<-read_qza(paste(project_location,"\\Output\\qza_results\\table_dada2_qza_merged_parts_final\\table_dada2_merged_final_filt.qza",sep=""))
+ otus<-read_qza(paste(data_location,"\\Output\\qza_results\\table_dada2_qza_merged_parts_final\\table_dada2_merged_final_filt.qza",sep=""))
  
  #Read rooted tree
- tree<-read_qza(paste(project_location,"\\Output\\qza_results\\phylogeny_qza_results\\rooted_tree.qza",sep=""))
+ tree<-read_qza(paste(data_location,"\\Output\\qza_results\\phylogeny_qza_results\\rooted_tree.qza",sep=""))
  
  #Read Greengenes taxonomy file
- taxonomy<-read_qza(paste(project_location,"\\Output\\qza_results\\taxonomy_qza_results\\taxonomy_greengenes.qza",sep=""))
+ taxonomy<-read_qza(paste(data_location,"\\Output\\qza_results\\taxonomy_qza_results\\taxonomy_",reference_db,".qza",sep=""))
  
  #Edit dtable
  tax_table<-do.call(rbind, strsplit(as.character(taxonomy$data$Taxon), "; "))
@@ -66,7 +74,7 @@ for (a in project_name){
    rownames(tax_table)<-taxonomy$data$Feature.ID
  
  #read metadata
- metadata<-read.table(paste(project_location,manifest_name[count],sep="\\"),sep='\t', header=T, row.names=1, comment="")
+ metadata<-read.table(paste(data_location,manifest_name[count],sep="\\"),sep='\t', header=T, row.names=1, comment="")
  
  #Create phylo object
  if(count==1){
@@ -77,6 +85,7 @@ for (a in project_name){
   }
  count=count+1
 }
+
 
 #Create filtered list of samples
 samplelist1_passed_q2<-as.list(sample_names(sample_data(physeq_complete)))
