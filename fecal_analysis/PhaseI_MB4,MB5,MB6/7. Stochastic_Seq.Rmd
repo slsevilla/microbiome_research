@@ -3,6 +3,8 @@ title: "7. StochasticCompare_Seq"
 author: "Sevilla"
 date: "October 12, 2019"
 output: word_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 #Input files
@@ -24,110 +26,64 @@ library(compareDF)
 ###############
 #Read in OTU tables
 ```{r}
-#Copy otu tables
 for (a in run_list){
  
- file.copy(paste(project_location,a,"\\OTUs\\otu_table.csv",sep=""),paste(project_location,a,"_otu_table.csv",sep=""))
+ file.copy(paste(project_location,a,"\\OTUs\\otu_table.csv",sep=""),paste(project_location,"Summary\\OTU\\",a,"_otu_table.csv",sep=""))
  
  otu_table_name<-paste("otu_",a,sep="")
  
- assign(otu_table_name,read.csv(paste(project_location,a,"_otu_table.csv",sep="")))
+ assign(otu_table_name,read.csv(paste(project_location,"Summary\\OTU\\",a,"_otu_table.csv",sep="")))
 }
 
 ```
 
 #Compare tables
 ```{r}
-otu_diff_1to2 <- diff(otu_R_Run1,otu_R_Run2)
+otu_diff_1to2 <- compare_df(otu_R_Run1,otu_R_Run2)
+otu_diff_1to3 <- compare_df(otu_R_Run1,otu_R_Run3)
+otu_diff_2to3 <- compare_df(otu_R_Run3,otu_R_Run3)
 
 ```
 
-#Load OTU and metadata tables
+#Read in Observed/Expected Tables
 ```{r}
-#Read in database with variable information
-metadata_baseline <- read.table(paste(output_location,"Taxa\\",manifest_name,sep=""),sep=",",header= TRUE)
-rownames(metadata_baseline)<-metadata_baseline$X
-metadata_baseline<-metadata_baseline[-1]
-
-otu_baseline_complete <- read.table(paste(output_location,"Taxa\\",taxa_file,sep=""),sep=",",header= TRUE)
-rownames(otu_baseline_complete)<-otu_baseline_complete$X
-otu_baseline_complete<-otu_baseline_complete[-1]
-
-rownames(metadata_baseline)==rownames(otu_baseline_complete) #Should be true
-```
-
-#OTU Counts by sample
-Determine total OTUs
-```{r}
-otu_baseline_complete$Total_OTUs <- rowSums(otu_baseline_complete)
-```
-
-#Observed to Expected Counts
-```{r}
-samplelist_seqcontrols<-rownames(otu_baseline_complete)
-observed_baseline_seqcontrols<- data.frame()
-taxa_observed=colnames(otu_baseline_complete)
-taxa_observed=taxa_observed[-length(taxa_observed)]#Remove Total_OTUs
-
-observed_count=0
-notobserved_count=0
-
-#Individual Samples
-for (a in samplelist_seqcontrols){
- control_type <- as.String(metadata_baseline[a,"Source.Descrip"])
- taxa_temp <- control_expect[,c("Gram",control_type)]
- taxa_temp <- row.names(subset(taxa_temp,!(taxa_temp[,control_type]=="A")))
+for (a in run_list){
  
- for (b in taxa_temp){ #for all expected taxa, determine which are observed
-  otu_count <- otu_baseline_complete[a,b]
+ for (b in taxa_level){
+   file.copy(paste(project_location,a,"\\Data\\Baseline\\observed_baseline_",b,"_seqcontrols.csv",sep=""),paste(project_location,"Summary\\",b,"\\",a,"_observed_baseline_seqcontrols.csv",sep=""))
+ 
+ obs_table_name<-paste("obs_",a,"_",b,sep="")
+ 
+ assign(obs_table_name,read.csv(paste(project_location,"Summary\\",b,"\\",a,"_observed_baseline_seqcontrols.csv",sep=""),row.names=1))
+ 
+ }
+
+}
+
+```
+
+#Determine TAR and TDR
+```{r}
+control_list<-c("MSA1000","MSA1001","MSA1002","MSA1003","D6305","D6306","D6311")
+obs_merged<-data.frame()
+
+for (a in run_list){
+ for (b in taxa_level){
+  table_name<-(paste("obs",a,b,sep="_"))
+  tmp<-get(table_name)
   
-  if(!(is.na(observed_count) || is.null(otu_count) || otu_count==0)){ #for all taxa with a positive OTU count
-    observed_count= observed_count+1
-  } else{
-   notobserved_count=notobserved_count+1
+  for(c in control_list){
+   sample_name<-paste(c,a,b,sep="_")
+   
+   obs_merged[sample_name,"TP"]<-tmp[c,"Observed"]
+   obs_merged[sample_name,"FP"]<-tmp[c,"Observed_NotExpected"]
+   obs_merged[sample_name,"FN"]<-tmp[c,"Expected_NotObserved"]
+
+   obs_merged[sample_name,"TAR"]<-tmp[c,"Observed"]/(tmp[c,"Observed"]+tmp[c,"Observed_NotExpected"])
+   obs_merged[sample_name,"TDR"]<-tmp[c,"Observed"]/(tmp[c,"Observed"]+tmp[c,"Expected_NotObserved"])
   }
  }
- 
- observed_baseline_seqcontrols[a,"Observed"] <- observed_count
- observed_baseline_seqcontrols[a,"Expected"] <- length(taxa_temp)
- observed_baseline_seqcontrols[a,"Observed_NotExpected"] <- sum(otu_baseline_complete[a,]>1)-1-observed_count #total-1 for total OTU column
- observed_baseline_seqcontrols[a,"Expected_NotObserved"] <- notobserved_count
- observed_baseline_seqcontrols[a,"Source.Descrip"] <- metadata_baseline[a,"Source.Descrip"]
- observed_count=0
- notobserved_count=0
 }
-
-write.csv(observed_baseline_seqcontrols,paste(output_location,"Data\\Baseline\\observed_baseline_seqcontrols.csv",sep=""))
-
-#Average by Source.Descrip
-observed_count=0
-observednotexp_count=0
-notobserved_count=0
-count=0
-source_list<-unique(observed_baseline_seqcontrols$Source.Descrip)
-
-for (a in source_list){
- for (b in samplelist_seqcontrols){
-  control_type <- as.String(metadata_baseline[b,"Source.Descrip"])
-  if(a==control_type){
-   observed_count<-observed_baseline_seqcontrols[b,"Observed"]+observed_count
-   observednotexp_count<-observed_baseline_seqcontrols[b,"Observed_NotExpected"]+observednotexp_count
-   notobserved_count<-observed_baseline_seqcontrols[b,"Expected_NotObserved"]+notobserved_count
-   expected_count<-observed_baseline_seqcontrols[b,"Expected"]
-   count=count+1
-  }
- }
- observed_baseline_seqcontrols[a,"Observed"]<-observed_count/count
- observed_baseline_seqcontrols[a,"Expected"]<-expected_count
- observed_baseline_seqcontrols[a,"Observed_NotExpected"]<-observednotexp_count/count
- observed_baseline_seqcontrols[a,"Expected_NotObserved"]<-notobserved_count/count
- observed_baseline_seqcontrols[a,"Source.Descrip"]<-a
- 
- observed_count=0
- observednotexp_count=0
- notobserved_count=0
- count=0
-}
-
-write.csv(observed_baseline_seqcontrols,paste(output_location,"Data\\Baseline\\observed_baseline_seqcontrols.csv",sep=""))
+  
+write.csv(obs_merged,paste(project_location,"Summary\\obs_diffs.csv",sep=""))
 ```
