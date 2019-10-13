@@ -1,0 +1,66 @@
+---
+title: "8. HigherTaxa_Seq"
+author: "Sevilla"
+date: "October 13, 2019"
+output: word_document
+---
+
+#Input files
+```{r}
+project_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_HigherTaxa\\")
+
+run_list=c("R_Run1")
+
+taxa_level=c("Family","Genus")
+```
+
+#Load required libraries
+############### 
+```{r}
+library(compareDF)
+```
+
+#Analysis
+###############
+#Read in Observed/Expected Tables
+```{r}
+#Move taxa tables to summary document for easy access, read in the tables
+for (a in run_list){
+ 
+ for (b in taxa_level){
+
+ obs_table_name<-paste("obs_",a,"_",b,sep="")
+ 
+ assign(obs_table_name,read.csv(paste(project_location,"Summary\\",b,"\\",a,"_observed_baseline_seqcontrols.csv",sep=""),row.names=1))
+ }
+}
+
+```
+
+#Determine TAR and TDR
+```{r}
+#Need to determine the TP, FP, FN rate for each of the runs. Then will calculate the TAR (taxon accuracty rate - TP/TP+FP) and the TDR (taxon detection rate - TP/TP+FN) at each taxa level
+
+control_list<-c("MSA1000","MSA1001","MSA1002","MSA1003","D6305","D6306","D6311")
+obs_merged<-data.frame()
+
+for (a in run_list){
+ for (b in taxa_level){
+  table_name<-(paste("obs",a,b,sep="_"))
+  tmp<-get(table_name)
+  
+  for(c in control_list){
+   sample_name<-paste(c,a,b,sep="_")
+   
+   obs_merged[sample_name,"TP"]<-tmp[c,"Observed"]
+   obs_merged[sample_name,"FP"]<-tmp[c,"Observed_NotExpected"]
+   obs_merged[sample_name,"FN"]<-tmp[c,"Expected_NotObserved"]
+
+   obs_merged[sample_name,"TAR"]<-tmp[c,"Observed"]/(tmp[c,"Observed"]+tmp[c,"Observed_NotExpected"])
+   obs_merged[sample_name,"TDR"]<-tmp[c,"Observed"]/(tmp[c,"Observed"]+tmp[c,"Expected_NotObserved"])
+  }
+ }
+}
+  
+write.csv(obs_merged,paste(project_location,"\\obs_diffs.csv",sep=""))
+```
