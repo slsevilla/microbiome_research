@@ -8,7 +8,7 @@ editor_options:
 #To Update
 ```{r}
 parent_dir = c("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\")
-project_name=c("Project_NP0084_MB4\\Stochastic_Run3")
+project_name=c("Project_NP0084_MB4\\Stochastic_Run2")
 manifest_name=c("NP0084-MB4_08_29_19_metadata_seq.txt")
 
 output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\R_Run3\\")
@@ -422,7 +422,11 @@ for (a in phylos_obs){
  }
  
  gentab<-aggregate(gentab[-ncol(gentab)],by=list(gentab$Genus),FUN="sum") #- to remove genus column, since it's not a col to sum
- gentab[1,1]<-"Unknown" #blank column (originally was "g__") needs to be renamed
+ 
+ if(gentab[1,1]==""){
+  gentab[1,1]<-"Unknown" #blank column (originally was "g__" for unassigned) needs to be renamed
+  }
+ 
  gentab<-t(gentab) #transpose for downstream metadata matching
  colnames(gentab)<-gentab[1,]
  gentab<-gentab[-1,]
@@ -470,8 +474,11 @@ for (a in phylos_obs){
   }
  }
  
+ if(famtab[1,1]==""){
+  famtab[1,1]<-"Unknown" #blank column (originally was "f__" for unassigned) needs to be renamed
+ }
+ 
  famtab<-aggregate(famtab[-ncol(famtab)],by=list(famtab$Family),FUN="sum") #- to remove genus column, since it's not a col to sum
- famtab[1,1]<-"Unknown" #blank column (originally was "f__") needs to be renamed
  famtab<-t(famtab) #transpose for downstream metadata matching
  colnames(famtab)<-famtab[1,]
  famtab<-famtab[-1,]
