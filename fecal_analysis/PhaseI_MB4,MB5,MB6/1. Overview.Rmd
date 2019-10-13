@@ -8,10 +8,10 @@ editor_options:
 #To Update
 ```{r}
 parent_dir = c("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\")
-project_name=c("Project_NP0084_MB4\\HigherGenus")
+project_name=c("Project_NP0084_MB4\\Stochastic_Run1")
 manifest_name=c("NP0084-MB4_08_29_19_metadata_seq.txt")
 
-output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_SeqOnly\\")
+output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\R_Run2\\")
 
 sample_depth=100000
 reference_db="greengenes"
@@ -47,10 +47,12 @@ library(ggplot2)
 #Directory Creation
 ```{r}
 #Create directories
-dir.create(paste(output_location,"Data\\Summary",sep=""))
-dir.create(paste(output_location,"Graphs\\Summary",sep=""))
-dir.create(paste(output_location,"OTUs",sep=""))
-dir.create(paste(output_location,"Taxa",sep=""))
+dir_create<-c("Data","Data\\Summary","Data\\Baseline","OTUs","Taxa","Graphs","Graphs\\Summary","Graphs\\Baseline")
+
+for(a in dir_create){
+ dir.create(paste(output_location,a,sep=""))
+}
+
 ```
 
 
