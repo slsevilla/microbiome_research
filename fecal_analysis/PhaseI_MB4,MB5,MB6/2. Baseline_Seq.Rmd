@@ -60,13 +60,13 @@ otu_baseline_complete<-otu_baseline_complete[-1]
 rownames(metadata_baseline)==rownames(otu_baseline_complete) #Should be true
 ```
 
-#3. OTU Counts by sample
+#OTU Counts by sample
 Determine total OTUs
 ```{r}
 otu_baseline_complete$Total_OTUs <- rowSums(otu_baseline_complete)
 ```
 
-#4. Observed to Expected Counts
+#Observed to Expected Counts
 ```{r}
 samplelist_seqcontrols<-rownames(otu_baseline_complete)
 observed_count=0
@@ -93,7 +93,7 @@ for (a in samplelist_seqcontrols){
  observed_count=0
 }
 
-write.csv(observed_baseline_seqcontrols,paste(project_location,"\\Output\\R\\Data\\Baseline\\observed_baseline_seqcontrols.csv",sep=""))
+write.csv(observed_baseline_seqcontrols,paste(output_location,"Data\\Baseline\\observed_baseline_seqcontrols.csv",sep=""))
 
 #Average by Source.Descrip
 observed_count=0

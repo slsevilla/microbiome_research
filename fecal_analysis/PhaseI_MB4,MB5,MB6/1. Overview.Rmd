@@ -50,6 +50,7 @@ library(ggplot2)
 dir.create(paste(output_location,"Data\\Summary",sep=""))
 dir.create(paste(output_location,"Graphs\\Summary",sep=""))
 dir.create(paste(output_location,"OTUs",sep=""))
+dir.create(paste(output_location,"Taxa",sep=""))
 ```
 
 
@@ -120,7 +121,7 @@ count=1
 for (a in project_name){
  phy_name<-paste("physeq_complete",count,sep="")
  
- assign(phy_name,subset_samples(get(phy_name),External.ID!="Quarantined"))
+ assign(phy_name,subset_samples(get(phy_name),Vial.ID!="Quarantined"))
  count=count+1
 }
 
@@ -197,7 +198,7 @@ physeq_complete<-phyloseq(otu,tax,sampledata1,random_tree) #merged phylo object
 #Output
 s<-summary(sample_data(physeq_complete))
 capture.output(s, file = paste(output_location,"Data\\Summary\\summary_prefilter.txt",sep=""))
-capture.output(otu, file = paste(output_location,"OTUs\\otu_table.txt",sep=""))
+write.csv(otu, file = paste(output_location,"OTUs\\otu_table.csv",sep=""))
 
 ```
 
@@ -324,21 +325,21 @@ capture.output(s, file = paste(output_location,"Data\\Summary\\summary_postfilte
 #Only samples
 physeq_filt_seqcontrols<-physeq_filt %>%
   subset_samples(
-    Sample_Cat=="SeqControl" 
+    Sample.Type=="Seq.Control" 
   )
 physeq_filt_seqcontrols #verify sample number
 
 #Only controls
 physeq_filt_extcontrols<-physeq_filt %>%
   subset_samples(
-    Sample_Cat == "ExtBlank" | Sample_Cat=="Ext.Control"
+    Sample.Type == "Ext.Blank" | Sample_Cat=="Ext.Control"
   )
 physeq_filt_extcontrols #verify sample number
 
 #Only replicates
 physeq_filt_study<-physeq_filt %>%
   subset_samples(
-    Sample_Cat == "Study" 
+    Sample.Type == "Study" 
   )
 physeq_filt_study #verify sample number
 
