@@ -37,8 +37,9 @@ for (a in run_list){
 
 ```
 
-#Compare tables
+#Compare OTU tables
 ```{r}
+#Determine if there are differences in the OTU read counts between the three stochastic runs
 otu_diff_1to2 <- compare_df(otu_R_Run1,otu_R_Run2)
 otu_diff_1to3 <- compare_df(otu_R_Run1,otu_R_Run3)
 otu_diff_2to3 <- compare_df(otu_R_Run3,otu_R_Run3)
@@ -47,6 +48,7 @@ otu_diff_2to3 <- compare_df(otu_R_Run3,otu_R_Run3)
 
 #Read in Observed/Expected Tables
 ```{r}
+#Move taxa tables to summary document for easy access, read in the tables
 for (a in run_list){
  
  for (b in taxa_level){
@@ -55,15 +57,21 @@ for (a in run_list){
  obs_table_name<-paste("obs_",a,"_",b,sep="")
  
  assign(obs_table_name,read.csv(paste(project_location,"Summary\\",b,"\\",a,"_observed_baseline_seqcontrols.csv",sep=""),row.names=1))
- 
  }
-
 }
 
 ```
 
+#Compare Taxa Tables
+```{r}
+#Not necessary, since the OTU tables were the same - merged at the taxa level will not show any difference
+#obs_diff_1to2_Family <- compare_df(obs_R_Run1_Family,obs_R_Run2_Family)
+```
+
 #Determine TAR and TDR
 ```{r}
+#Need to determine the TP, FP, FN rate for each of the runs. Then will calculate the TAR (taxon accuracty rate - TP/TP+FP) and the TDR (taxon detection rate - TP/TP+FN) at each taxa level
+
 control_list<-c("MSA1000","MSA1001","MSA1002","MSA1003","D6305","D6306","D6311")
 obs_merged<-data.frame()
 
