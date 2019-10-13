@@ -8,10 +8,10 @@ editor_options:
 #To Update
 ```{r}
 parent_dir = c("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\")
-project_name=c("Project_NP0084_MB4\\Stochastic_Run1")
+project_name=c("Project_NP0084_MB4\\Stochastic_Run3")
 manifest_name=c("NP0084-MB4_08_29_19_metadata_seq.txt")
 
-output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\R_Run2\\")
+output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\R_Run3\\")
 
 sample_depth=100000
 reference_db="greengenes"
