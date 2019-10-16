@@ -32,9 +32,7 @@ library(data.table)
 library(ggplot2)
 library(tm)
 library(vegan)
-library("biom")
 library(tidyr)
-library(ggplot2)
 library(cowplot)
 library(scales)
 library(phyloseq)
@@ -44,11 +42,9 @@ library(gridExtra)
 source("sources/miseqR.R")
 library(tidyverse)
 source("sources/ggrare.R") #github library: https://rdrr.io/github/gauravsk/ranacapa/
-library(ggplot2)
 library(compareDF)
 ```
 
-############### 
 #Input
 ```{r}
 #Adapted from 1. Initital Processing code for fecal analysis
@@ -62,14 +58,15 @@ output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimiza
 sample_depth=100000
 reference_db="greengenes"
 
-#New Code
-output_run_list=c("R_Run1","R_Run2","R_Run3")
+#Adapted from 2. Baseline_Seq
+control_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Controls\\Taxonomy\\")
 
+#New Code Requirements
+output_run_list=c("R_Run1","R_Run2","R_Run3")
 taxa_levels=c("Family","Genus")
 ```
 
-#Adapted from 1. Initital Processing code for fecal analysis
-############### 
+############### Adapted from 1. Initital Processing code for fecal analysis
 #Directory Creation
 ```{r}
 #Create directories - One for each output location, and the following subdirectories:
@@ -258,20 +255,17 @@ for (a in output_run_list){
  count=count+1
 }
 ```
-##################
-####################
-#######################
 
-#OTU tables
+################## New Code
+#Read in raw OTU tables
 ```{r}
+count=1
 for (a in output_run_list){
  
- #Copy otu tables in case future project data is archived
- file.copy(paste(output_location,a,"\\OTUs\\otu_table.csv",sep=""),paste(output_location,"Summary\\OTU\\",a,"_otu_table.csv",sep=""))
- 
  otu_table_name<-paste("otu_",a,sep="")
+ assign(otu_table_name,read.csv(paste(output_location,a,"\\OTUs\\otu_table_filt_",run_list[count],".csv",sep="")))
  
- assign(otu_table_name,read.csv(paste(output_location,"Summary\\OTU\\",a,"_otu_table.csv",sep="")))
+ count=count+1
 }
 
 ```
@@ -284,19 +278,156 @@ otu_diff_1to2 <- compare_df(otu_R_Run1,otu_R_Run2)
 otu_diff_1to3 <- compare_df(otu_R_Run1,otu_R_Run3)
 otu_diff_2to3 <- compare_df(otu_R_Run3,otu_R_Run3)
 
+#Result: All of the tables are the same. No comparison needed at taxonomy levels.
 ```
 
-#Read in Observed/Expected Tables
+################## Adapted from 2. Baseline_Seq
+#NOTE: Will only use R_Run1 for the rest of the analysis, as all OTU information was the same, therefore taxonomic information will not vary
+
+#Taxonomy Reference
 ```{r}
-#Move taxa tables to summary document for easy access, read in the tables
+#Read in controls taxonomy file, grouped by taxa
+count=1
+for (a in taxa_levels){
+ expected_name<-paste("expected_taxa_",a,sep="")
+
+ assign(expected_name,read.table(paste(control_location,"Taxonomy_",a,"_2019.txt",sep=""),sep="\t",header=TRUE,row.names=count+6))
+ 
+ assign(expected_name,get(expected_name)[-1])
+ count=count+1
+}
+```
+
+#Store in taxa tables
+```{r}
+for (a in taxa_levels){
+ tax_table_name<-paste("taxa",a,sep="_")
+ assign(tax_table_name,read.csv(paste(output_location,output_run_list[1],"\\Taxa\\taxa_Summary_",b,"_",run_list[1],".csv",sep=""),row.names=1))
+}
+
+taxa_Family$Total_OTUs<-rowSums(taxa_Family)
+taxa_Genus$Total_OTUs<-rowSums(taxa_Genus)
+```
+
+#Observed to Expected Counts
+```{r}
+samplelist_seqcontrols<-rownames(otu_baseline_complete)
+observed_baseline_seqcontrols<- data.frame()
+taxa_observed=colnames(otu_baseline_complete)
+taxa_observed=taxa_observed[-length(taxa_observed)]#Remove Total_OTUs
+
+observed_count=0
+notobserved_count=0
+
+#Individual Samples
+for (a in samplelist_seqcontrols){
+ control_type <- as.String(metadata_baseline[a,"Source.Descrip"])
+ taxa_temp <- control_expect[,c("Gram",control_type)]
+ taxa_temp <- row.names(subset(taxa_temp,!(taxa_temp[,control_type]=="A")))
+ 
+ for (b in taxa_temp){ #for all expected taxa, determine which are observed
+  otu_count <- otu_baseline_complete[a,b]
+  
+  if(!(is.na(observed_count) || is.null(otu_count) || otu_count==0)){ #for all taxa with a positive OTU count
+    observed_count= observed_count+1
+  } else{
+   notobserved_count=notobserved_count+1
+  }
+ }
+ 
+ observed_baseline_seqcontrols[a,"Observed"] <- observed_count
+ observed_baseline_seqcontrols[a,"Expected"] <- length(taxa_temp)
+ observed_baseline_seqcontrols[a,"Observed_NotExpected"] <- sum(otu_baseline_complete[a,]>1)-1-observed_count #total-1 for total OTU column
+ observed_baseline_seqcontrols[a,"Expected_NotObserved"] <- notobserved_count
+ observed_baseline_seqcontrols[a,"Source.Descrip"] <- metadata_baseline[a,"Source.Descrip"]
+ observed_count=0
+ notobserved_count=0
+}
+
+#Average by Source.Descrip
+observed_count=0
+observednotexp_count=0
+notobserved_count=0
+count=0
+source_list<-unique(observed_baseline_seqcontrols$Source.Descrip)
+
+for (a in source_list){
+ for (b in samplelist_seqcontrols){
+  control_type <- as.String(metadata_baseline[b,"Source.Descrip"])
+  if(a==control_type){
+   observed_count<-observed_baseline_seqcontrols[b,"Observed"]+observed_count
+   observednotexp_count<-observed_baseline_seqcontrols[b,"Observed_NotExpected"]+observednotexp_count
+   notobserved_count<-observed_baseline_seqcontrols[b,"Expected_NotObserved"]+notobserved_count
+   expected_count<-observed_baseline_seqcontrols[b,"Expected"]
+   count=count+1
+  }
+ }
+ observed_baseline_seqcontrols[a,"Observed"]<-observed_count/count
+ observed_baseline_seqcontrols[a,"Expected"]<-expected_count
+ observed_baseline_seqcontrols[a,"Observed_NotExpected"]<-observednotexp_count/count
+ observed_baseline_seqcontrols[a,"Expected_NotObserved"]<-notobserved_count/count
+ observed_baseline_seqcontrols[a,"Source.Descrip"]<-a
+ 
+ observed_count=0
+ observednotexp_count=0
+ notobserved_count=0
+ count=0
+}
+
+write.csv(observed_baseline_seqcontrols,paste(output_location,"Data\\Baseline\\observed_baseline_",taxa_level,"_seqcontrols.csv",sep=""))
+```
+
+#Relative Abundance  - Seq Controls
+```{r}
+relabun_baseline_seqcontrols<-data.frame()
+
+#Complete Relative Abundance
+samplelist_seqcontrols<-rownames(otu_baseline_complete)
+taxa_list <- colnames(otu_baseline_complete)
+taxa_list<-taxa_list[-(length(taxa_list))]
+taxa_list<-append(taxa_list,rownames(control_expect))
+
+for (a in samplelist_seqcontrols){
+ for (b in taxa_list){
+  
+  relabun <- otu_baseline_complete[a,b]
+  
+  if(!(is.na(relabun) || is.null(relabun) || relabun==0)){
+   relabun_baseline_seqcontrols[a,b] <- otu_baseline_complete[a,b]/otu_baseline_complete[a,"Total_OTUs"]
+   relabun_baseline_seqcontrols[a,"Source.Descrip"]<-as.character(metadata_baseline[a,"Source.Descrip"])
+  }
+  control_type<-as.character(metadata_baseline[a,"Source.Descrip"])
+  relabun_baseline_seqcontrols[control_type,b]<-as.character(control_expect[b,control_type])
+  relabun_baseline_seqcontrols[control_type,"Source.Descrip"]<-control_type
+ }
+}
+
+relabun_baseline_seqcontrols[is.na(relabun_baseline_seqcontrols)]=0 #replace na's with 0
+relabun_baseline_seqcontrols[relabun_baseline_seqcontrols=="A"]=0 #replace A's with 0
+write.csv(relabun_baseline_seqcontrols,paste(output_location,"Data\\Baseline\\relabun_baseline_seqcontrols.csv",sep=""))
+```
+
+#6 Plot graph - IntraControl Variability
+For each kit, show variability, and map
+```{r}
+ordu = ordinate(physeq_filt_seqcontrols, "PCoA", "unifrac", weighted=TRUE)
+plot_ordination(physeq_filt_seqcontrols, ordu, color="Source.Descrip")
+```
+
+####################
+
+
+
+
+#Observed/Expected Tables
+```{r}
 for (a in output_run_list){
  
- for (b in taxa_level){
-   file.copy(paste(output_location,a,"\\Data\\Baseline\\observed_baseline_",b,"_seqcontrols.csv",sep=""),paste(output_location,"Summary\\",b,"\\",a,"_observed_baseline_seqcontrols.csv",sep=""))
- 
- obs_table_name<-paste("obs_",a,"_",b,sep="")
- 
- assign(obs_table_name,read.csv(paste(output_location,"Summary\\",b,"\\",a,"_observed_baseline_seqcontrols.csv",sep=""),row.names=1))
+ for (b in taxa_levels){
+  
+  taxa_table_name<-paste("obs_",a,"_",b,sep="")
+  
+  assign(taxa_table_name,read.csv(paste(output_location,"\\Taxa\\",b,"\\",a,"_observed_baseline_seqcontrols.csv",sep=""),row.names=1))
  }
 }
 
