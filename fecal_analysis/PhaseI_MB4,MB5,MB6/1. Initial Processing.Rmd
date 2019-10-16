@@ -148,31 +148,27 @@ if(phylo_number>1){
 
 #Create merges of OTU, Tax for final phylo object
 ```{r}
-#Create OTU tables
-count=1
-for (a in project_name){
- phy_name<-paste("physeq_complete",count,sep="")
- otu_name<-paste("otu",count,sep="")
- 
- assign(otu_name,as.data.frame(otu_table(get(phy_name))))
- count=count+1
-}
+otu_final<-as.data.frame(otu_table(physeq_complete1))
 
-#Merge OTU tables
 count=2
 if(phylo_number>1){
  otu_name<-paste("otu",count,sep="")
+ phy_name<-paste("physeq_complete",count,sep="")
+ assign(otu_name,as.data.frame(otu_table(get(phy_name))))
  
  for (a in colnames(get(otu_name))){
   for (b in rownames(get(otu_name))){
-   otu1[b,a]<-get(otu_name)[b,a]
+   otu_final[b,a]<-get(otu_name)[b,a]
   }
  }
+ count=count+1
 }
+
 otu<-otu_table(otu1,taxa_are_rows = TRUE)
 
-#Merge taxa tables
-tax1<-as.data.frame(tax_table(physeq_complete1))
+
+#Create taxa tables by flowcell (pulled from created filtered phyloseq objects)
+tax_final<-as.data.frame(tax_table(physeq_complete1))
 
 count=2
 if(phylo_number>1){
@@ -182,15 +178,14 @@ if(phylo_number>1){
  
  for (a in colnames(get(tax_name))){
   for (b in rownames(get(tax_name))){
-   tax1[b,a]<-get(tax_name)[b,a]
+   tax_final[b,a]<-get(tax_name)[b,a]
   }
  }
  count=count+1
 }
 
-tax<-as.matrix(tax1) #Convert to matrix - str that phyloseq requires
+tax<-as.matrix(tax_final) #Convert to matrix - str that phyloseq requires
 tax<-tax_table(tax)
-
 
 #Merge final object
 physeq_complete<-phyloseq(otu,tax,sampledata1) #merged phylo object

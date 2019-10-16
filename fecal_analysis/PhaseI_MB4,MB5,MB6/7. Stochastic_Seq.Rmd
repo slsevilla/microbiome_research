@@ -6,40 +6,550 @@ output: word_document
 editor_options: 
   chunk_output_type: console
 ---
+############### 
+#Project Overview
+To determine the stochastic affects that QIIME2 v1 pipeline has on OTU counts, subsequent taxonomic calling and precision/recall rates.
 
-#Input files
+#QIIME2 Pipeline
+Version 1 of the pipeline was used (T:\DCEG\Projects\Microbiome\CGR_MB\MicroBiome\sc_scripts_qiime2_pipeline\working) for this test. Three runs were performed using the sample dataset on three different start days. Each day was subsequently called "Stochastic_Run#". Output data is stored on the T Drive (T:\DCEG\Projects\Microbiome\CGR_MB\MicroBiome\Project_NP0084_MB4)
+
+#Sample Set
+Samples included in this anaysis were the sequencing controls of NP0084-MB4, MB5, and MB6, merged into one run. This includes a 43 controls samples of seven different mock communities and two blank-types.
+-Project-ID: NP0084-MB4, NP0084-MB5, NP0084-MB6
+-Sample-Cat: Seq.Blank, MSA, Zymo.Seq
+-Sample-Descrip: NTC.Blank, PCR.Blank, MSA1000, MSA1001, MSA1002, MSA1003, D6305, D6306, D6311
+
+#Analysis Overview
+Phyloseq objects will be adapted from the analysis pipeline created for the fecal analysis of NP0084-MB4,MB5,MB6. This includes 1. Initial Processing which created the PhyloSeq objects from the three flowcells, and merged them together. OTU tables at two taxonomic levels (family and genus) were created during this step. and 2. Baseline_Seq which imported these taxonomic tables and merged the expected control information to created observed/expected data tables. Output data is stored on the T Drive (T:\DCEG\CGF\TechTransfer\Microbiome\Extraction\Optimization\Fecal\Fresh Fecal Optimization_2017.08\Phase I\Analysis\NP0084-MB4,5,6\R_Stochastic).
+
+OTU tables will be compared below 
+
+#Required libraries
 ```{r}
-project_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\")
+library("biom")
+library(ape)
+library(data.table)
+library(ggplot2)
+library(tm)
+library(vegan)
+library("biom")
+library(tidyr)
+library(ggplot2)
+library(cowplot)
+library(scales)
+library(phyloseq)
+library(qiime2R)
+library(tibble)
+library(gridExtra)
+source("sources/miseqR.R")
+library(tidyverse)
+source("sources/ggrare.R") #github library: https://rdrr.io/github/gauravsk/ranacapa/
+library(ggplot2)
+library(compareDF)
+```
 
-run_list=c("R_Run1","R_Run2","R_Run3")
+############### 
+#Input
+```{r}
+#Adapted from 1. Initital Processing code for fecal analysis
+data_dir = c("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\")
+project_name=c("Project_NP0084_MB4\\")
+run_list=c("Stochastic_Run1","Stochastic_Run2","Stochastic_Run3")
+manifest_name=c("NP0084-MB4_08_29_19_metadata_seq.txt","NP0084-MB4_08_29_19_metadata_seq.txt","NP0084-MB4_08_29_19_metadata_seq.txt")
+
+output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\")
+
+sample_depth=100000
+reference_db="greengenes"
+
+#New Code
+output_run_list=c("R_Run1","R_Run2","R_Run3")
 
 taxa_level=c("Family","Genus")
 ```
 
-#Load required libraries
+#Adapted from 1. Initital Processing code for fecal analysis
 ############### 
+#Directory Creation
 ```{r}
-library(compareDF)
+#Create directories - One for each output location, and the following subdirectories:
+sub_create<-c("Data","Data\\Summary","Data\\Baseline","OTUs","Taxa","Graphs","Graphs\\Summary","Graphs\\Baseline")
+
+for (a in output_run_list){
+ dir.create(paste(output_location,a,sep=""))
+ 
+ for (b in sub_create){
+  dir.create(paste(output_location,a,"\\",b,sep=""))
+ }
+}
+
+#Create one summary dir for misc. files
+dir.create(paste(output_location,"Summary",sep=""))
 ```
 
-#Analysis
-###############
-#Read in OTU tables
+#Create PhySeq Object
 ```{r}
+count=1
 for (a in run_list){
+ run_data_dir = paste(data_dir,project_name,a,sep="")
+
+ #Read OTUS
+ otus<-read_qza(paste(run_data_dir,"\\Output\\qza_results\\table_dada2_qza_merged_parts_final\\table_dada2_merged_final_filt.qza",sep=""))
  
- file.copy(paste(project_location,a,"\\OTUs\\otu_table.csv",sep=""),paste(project_location,"Summary\\OTU\\",a,"_otu_table.csv",sep=""))
+ #Read rooted tree
+ tree<-read_qza(paste(run_data_dir,"\\Output\\qza_results\\phylogeny_qza_results\\rooted_tree.qza",sep=""))
+ 
+ #Read Greengenes taxonomy file
+ taxonomy<-read_qza(paste(run_data_dir,"\\Output\\qza_results\\taxonomy_qza_results\\taxonomy_",reference_db,".qza",sep=""))
+ 
+ #Edit table
+ tax_table<-do.call(rbind, strsplit(as.character(taxonomy$data$Taxon), "; "))
+   colnames(tax_table)<-c("Kingdom","Phylum","Class","Order","Family","Genus","Species")
+   rownames(tax_table)<-taxonomy$data$Feature.ID
+ 
+ #read metadata
+ metadata<-read.table(paste(run_data_dir,manifest_name[count],sep="\\"),sep='\t', header=T, row.names=1, comment="")
+ 
+ #Create phylo object
+ phyloname<-paste("physeq_complete",count,sep="")
+ assign(phyloname,phyloseq(otu_table(otus$data, taxa_are_rows = T), phy_tree(tree$data), tax_table(tax_table), sample_data(metadata)))
+ 
+ phylo_number=count #sets the number of phyloseq objects that will need to be merged downstream
+ count=count+1
+ print (count)
+}
+```
+
+#Filter samples 
+```{r}
+#In case there are duplicate samples across multiple flowcells, only one instance of the sample needs to be analyzed for the purposed of this project
+
+count=1
+#Create filtered list of samples
+for (a in project_name){
+ sample_name<-paste("samplelist1_passed_",count,sep="")
+ phy_name<-paste("physeq_complete",count,sep="")
+ assign(sample_name,as.list(sample_names(sample_data(get(phy_name)))))
+ 
+ if(count>1){ #if there is more than one dataset, merge the sample data with overlaps only
+  merge_name<-paste("samplelist1_passed_",count-1,sep="")
+  
+  interset<-intersect(get(sample_name),get(merge_name))
+ } else{
+  interset<-get(sample_name)
+ }
+ count=count+1
+}
+
+#Remove all samples duplicated in phylo objects >1 - do not need repeated samples
+count=1 
+for (a in interset){ #
+ phy_name<-paste("physeq_complete",count,sep="")
+ 
+ if(phylo_number>1){
+  assign(phy_name,subset_samples(get(phy_name),sample_names(get(phy_name))!=a)) 
+ }
+ count=count+1
+}
+ 
+#Remove quarantined samples
+count=1
+for (a in project_name){
+ phy_name<-paste("physeq_complete",count,sep="")
+ 
+ assign(phy_name,subset_samples(get(phy_name),Vial.ID!="Quarantined"))
+ count=count+1
+}
+
+#Merge Sample Data
+sampledata1<-as.data.frame(sample_data(physeq_complete1))
+
+count=2
+if(phylo_number>1){
+ sample_name<-paste("sampledata",count,sep="")
+ phy_name<-paste("physeq_complete",count,sep="")
+ assign(sample_name,as.data.frame(sample_table(get(phy_name))))
+ 
+ for (a in colnames(get(sample_name))){
+  for (b in rownames(get(sample_name))){
+   sampledata1[b,a]<-get(sample_name)[b,a]
+  }
+ }
+ count=count+1
+}
+
+```
+
+#Merge OTU and Tax tables (stored by flowcell)
+```{r}
+#Create otu tables by flowcell (pulled from created filtered phyloseq objects)
+otu_final<-as.data.frame(otu_table(physeq_complete1))
+
+count=2
+if(phylo_number>1){
+ otu_name<-paste("otu",count,sep="")
+ phy_name<-paste("physeq_complete",count,sep="")
+ assign(otu_name,as.data.frame(otu_table(get(phy_name))))
+ 
+ for (a in colnames(get(otu_name))){
+  for (b in rownames(get(otu_name))){
+   otu_final[b,a]<-get(otu_name)[b,a]
+  }
+ }
+ count=count+1
+}
+
+otu<-otu_table(otu1,taxa_are_rows = TRUE)
+
+
+#Create taxa tables by flowcell (pulled from created filtered phyloseq objects)
+tax_final<-as.data.frame(tax_table(physeq_complete1))
+
+count=2
+if(phylo_number>1){
+ tax_name<-paste("tax",count,sep="")
+ phy_name<-paste("physeq_complete",count,sep="")
+ assign(tax_name,as.data.frame(tax_table(get(phy_name))))
+ 
+ for (a in colnames(get(tax_name))){
+  for (b in rownames(get(tax_name))){
+   tax_final[b,a]<-get(tax_name)[b,a]
+  }
+ }
+ count=count+1
+}
+
+tax<-as.matrix(tax_final) #Convert to matrix - str that phyloseq requires
+tax<-tax_table(tax)
+
+
+#Merge final object
+physeq_complete<-phyloseq(otu,tax,sampledata1) #merged phylo object
+random_tree = rtree(ntaxa(physeq_complete1), rooted=TRUE, tip.label=taxa_names(physeq_complete1))
+physeq_complete<-phyloseq(otu,tax,sampledata1,random_tree) #merged phylo object
+
+#Output
+s<-summary(sample_data(physeq_complete))
+capture.output(s, file = paste(output_location,"Data\\Summary\\summary_prefilter.txt",sep=""))
+write.csv(otu, file = paste(output_location,"OTUs\\otu_table.csv",sep=""))
+
+```
+
+#Prune for bacteria only, Create prefilter summary files
+```{r}
+#Only bacteria
+physeq_filt<-physeq_complete %>%
+  subset_taxa(
+    Kingdom == "k__Bacteria" &
+    Family  != "k__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rickettsiales; f__mitochondria" &
+    Class   != "k__Bacteria; p__Cyanobacteria; c__Chloroplast"
+  )
+
+#Print summaries
+s<-summary(sample_data(physeq_filt)$Sample.Type)
+capture.output(s, file = paste(output_location,"Data\\Summary\\summary_prefilter_sample.type.txt",sep=""))
+s<-summary(sample_data(physeq_filt)$Sample.Cat)
+capture.output(s, file = paste(output_location,"Data\\Summary\\summary_prefilter_sample.cat.txt",sep=""))
+```
+
+#Filter taxa >.001 ; Determine read counts and plot
+```{r}
+physeq_filt = filter_taxa(physeq_filt, function(x) mean(x) > 1e-2, TRUE)
+physeq_filt #note new taxa number and sample number
+
+# Make a data frame with a column for the read counts of each sample
+sample_sum_df<-data.frame(sum = sample_sums(physeq_filt),sample_data(physeq_filt))
+colnames(sample_sum_df)
+
+# Histogram of sample read counts by sampletype
+p1<-ggplot(sample_sum_df, aes(x = sum, fill=Sample.Type)) + 
+  geom_histogram(binwidth = 2500) +
+  xlab("Sequencing Reads") +
+  ylab("Number of Samples") +
+  ggtitle("Distribution of Sample Sequencing Depth - Pre-Filtering")
+
+#Save file
+file_name =paste(output_location,"Graphs\\Summary\\SeqDepth_prefilter.tiff",sep="")
+tiff(file_name, width=800)
+print(p1)
+dev.off()
+
+#Read counts of blanks only
+physeq_filt_blanks <- physeq_filt %>%
+  subset_samples(
+    Source.Descrip == "Water" 
+  )
+# Make a data frame with a column for the read counts of each sample
+sample_sum_df<-data.frame(sum = sample_sums(physeq_filt_blanks),sample_data(physeq_filt_blanks))
+colnames(sample_sum_df)
+
+# Histogram of sample read counts by sampletype
+p1<-ggplot(sample_sum_df, aes(x = sum, fill=Ext.Kit)) + 
+  geom_histogram(binwidth = 2500) +
+  xlab("Sequencing Reads") +
+  ylab("Number of Samples") +
+  ggtitle("Distribution of Sample Sequencing Depth - Pre-Filtering")
+
+#Save file
+file_name =paste(output_location,"Graphs\\Summary\\SeqDepth_prefilter_blanks.tiff",sep="")
+tiff(file_name, width=800)
+print(p1)
+dev.off()
+```
+
+#Filter samples with less than 10000 reads: Review filtered read counts and plot
+```{r}
+physeq_filt = prune_samples(sample_sums(physeq_filt) > 10000, physeq_filt)
+
+sample_sum_df<-data.frame(sum = sample_sums(physeq_filt),sample_data(physeq_filt))
+colnames(sample_sum_df)
+
+# Histogram of sample read counts by sample type
+p1<-ggplot(sample_sum_df, aes(x = sum, fill=Sample.Type)) + 
+  geom_histogram(binwidth = 2500) +
+  xlab("Sequencing Reads") +
+  ylab("Number of Samples") +
+  ggtitle("Distribution of Sample Sequencing Depth - Post-Filtering")
+file_name =paste(output_location,"Graphs\\Summary\\SeqDepth_postfilter.tiff",sep="")
+tiff(file_name, width=800)
+print(p1)
+dev.off()
+
+# Histogram of sample read counts by Run id - explain two clusters
+p1<-ggplot(sample_sum_df, aes(x = sum, fill=Run.ID)) + 
+  geom_histogram(binwidth = 2500) +
+  xlab("Sequencing Reads") +
+  ylab("Number of Samples") +
+  ggtitle("Distribution of Sample Sequencing Depth - Post-Filtering")
+file_name =paste(output_location,"Graphs\\Summary\\SeqDepth_postfilter_runid.tiff",sep="")
+tiff(file_name, width=800)
+print(p1)
+dev.off()
+
+# Repeat for blanks only
+physeq_filt_blanks = prune_samples(sample_sums(physeq_filt_blanks) > 10000, physeq_filt_blanks)
+sample_sum_df<-data.frame(sum = sample_sums(physeq_filt_blanks),sample_data(physeq_filt_blanks))
+colnames(sample_sum_df)
+
+# Histogram of sample read counts by ext kit
+p1<-ggplot(sample_sum_df, aes(x = sum, fill=Ext.Kit)) + 
+  geom_histogram(binwidth = 2500) +
+  xlab("Sequencing Reads") +
+  ylab("Number of Samples") +
+  ggtitle("Distribution of Sample Sequencing Depth - Post-Filtering")
+file_name =paste(output_location,"Graphs\\Summary\\SeqDepth_postfilter_blanks.tiff",sep="")
+tiff(file_name, width=800)
+print(p1)
+dev.off()
+
+#Print summaries
+s<-summary(sample_data(physeq_filt))
+capture.output(s, file = paste(output_location,"Data\\Summary\\summary_postfilter.txt",sep=""))
+
+s<-summary(sample_data(physeq_filt)$Sample.Type)
+capture.output(s, file = paste(output_location,"Data\\Summary\\summary_postfilter_sample.type.txt",sep=""))
+
+s<-summary(sample_data(physeq_filt)$Sample.Cat)
+capture.output(s, file = paste(output_location,"Data\\Summary\\summary_postfilter_sample.cat.txt",sep=""))
+```
+
+#Subset filtered data, sample to specified depth
+```{r}
+#Only samples
+physeq_filt_seqcontrols<-physeq_filt %>%
+  subset_samples(
+    Sample.Type=="Seq.Control" 
+  )
+physeq_filt_seqcontrols #verify sample number
+
+#Only controls
+physeq_filt_extcontrols<-physeq_filt %>%
+  subset_samples(
+    Sample.Type == "Ext.Blank" | Sample_Cat=="Ext.Control"
+  )
+physeq_filt_extcontrols #verify sample number
+
+#Only replicates
+physeq_filt_study<-physeq_filt %>%
+  subset_samples(
+    Sample.Type == "Study" 
+  )
+physeq_filt_study #verify sample number
+
+# Scale reads to even depth 
+p1 <- ggrare(physeq_filt, step = 1000, color = "Sample.Type", se = FALSE)
+p1 <- p1 + facet_wrap(~Sample.Type)
+file_name =paste(output_location,"Graphs\\Summary\\Rarecurve_PreFiltering.tiff",sep="")
+tiff(file_name, width=800)
+print(p1)
+dev.off()
+ 
+physeq_scale<-physeq_filt %>% scale_reads(n=sample_depth) 
+physeq_filt_seqcontrols<-physeq_filt_seqcontrols %>% scale_reads(n=sample_depth) 
+physeq_filt_extcontrols<-physeq_filt_extcontrols %>% scale_reads(n=sample_depth) 
+physeq_filt_study<-physeq_filt_study %>% scale_reads(n=sample_depth) 
+
+p1 <- ggrare(physeq_scale, step = 1000, color = "Sample.Type", se = FALSE)
+p1 <- p1 + facet_wrap(~Sample.Type)
+file_name =paste(output_location,"Graphs\\Summary\\Rarecurve_PostFiltering.tiff",sep="")
+tiff(file_name, width=800)
+print(p1)
+dev.off()
+```
+
+#Alpha Diversity - All samples, Run ID
+```{r}
+# Scale reads to even depth 
+physeq_scale<-physeq_filt %>%
+  scale_reads(n=1000) 
+
+#Sample Type
+p<-plot_richness(physeq_scale, x="Sample.Type") + geom_boxplot()
+file_name =paste(output_location,"Graphs\\Summary\\alphadiv_sampletype.tiff",sep="")
+tiff(file_name, width=800)
+print(p)
+dev.off()
+
+#Sequencing Batch
+p<-plot_richness(physeq_scale, x="Run.ID") + geom_boxplot()
+file_name =paste(output_location,"Graphs\\Summary\\alphadiv_sequencingbatch.tiff",sep="")
+tiff(file_name, width=800)
+print(p)
+dev.off()
+
+#Extraction Kit
+p<-plot_richness(physeq_scale, x="Ext.Kit") + geom_boxplot()
+file_name =paste(output_location,"Graphs\\Summary\\alphadiv_extractionkit.tiff",sep="")
+tiff(file_name, width=800)
+print(p)
+dev.off()
+```
+
+#Save data tables for downstream use - Genus
+```{r}
+#phylos_obs<-list(physeq_filt_seqcontrols,physeq_filt_extcontrols,physeq_filt_study)
+phylos_obs<-list(physeq_filt_seqcontrols)
+count=1
+
+for (a in phylos_obs){
+ # Create a factor corresponding to the Genera
+ genfac = factor(tax_table(a)[, "Genus"])
+ # Tabulate the counts for each genera in each sample
+ gentab = apply(otu_table(a), MARGIN = 2, function(x) {
+    tapply(x, INDEX = genfac, FUN = sum, na.rm = TRUE, simplify = TRUE)
+ })
+ gentab<-as.data.frame(gentab)
+ 
+ for (c in rownames(gentab)){
+  genus<-c
+  if(!grepl("g__",genus)){
+   gentab[c,"Genus"]<-"HigherGenus"
+  } else{
+   colname_update<-str_remove(c, "g__")
+   colname_update<-gsub("[","",colname_update,fixed=TRUE) #fixed = TRUE disables regex
+   colname_update<-gsub("]","",colname_update,fixed=TRUE)
+   gentab[c,"Genus"]<-colname_update
+  }
+ }
+ 
+ gentab<-aggregate(gentab[-ncol(gentab)],by=list(gentab$Genus),FUN="sum") #- to remove genus column, since it's not a col to sum
+ 
+ if(gentab[1,1]==""){
+  gentab[1,1]<-"Unknown" #blank column (originally was "g__" for unassigned) needs to be renamed
+  }
+ 
+ gentab<-t(gentab) #transpose for downstream metadata matching
+ colnames(gentab)<-gentab[1,]
+ gentab<-gentab[-1,]
+ 
+ file_name =paste(output_location,"Taxa\\taxa_Summary_genus",count,".csv",sep="")
+ write.csv(gentab,file_name)
+ 
+ metatab <- as.data.frame(sample_data(a))
+ file_name =paste(output_location,"Taxa\\metadata_Summary_genus",count,".csv",sep="")
+ write.csv(metatab,file_name)
+ count=count+1
+}
+
+#File ID's
+#1: Seq_controls
+#2: Ext_controls
+#3: Study
+```
+
+#Save data tables for downstream use - Family
+```{r}
+#phylos_obs<-list(physeq_filt_seqcontrols,physeq_filt_extcontrols,physeq_filt_study)
+phylos_obs<-list(physeq_filt_seqcontrols)
+
+count=1
+
+for (a in phylos_obs){
+ # Create a factor corresponding to the Family
+ famfac = factor(tax_table(a)[, "Family"])
+ # Tabulate the counts for each genera in each sample
+ famtab = apply(otu_table(a), MARGIN = 2, function(x) {
+    tapply(x, INDEX = famfac, FUN = sum, na.rm = TRUE, simplify = TRUE)
+ })
+ famtab<-as.data.frame(famtab)
+ 
+ for (c in rownames(famtab)){
+  family<-c
+  if(!grepl("f__",family)){
+   famtab[c,"Family"]<-"HigherFamily"
+  } else{
+   colname_update<-str_remove(c, "f__")
+   colname_update<-gsub("[","",colname_update,fixed=TRUE) #fixed = TRUE disables regex
+   colname_update<-gsub("]","",colname_update,fixed=TRUE)
+   famtab[c,"Family"]<-colname_update
+  }
+ }
+ 
+ if(famtab[1,1]==""){
+  famtab[1,1]<-"Unknown" #blank column (originally was "f__" for unassigned) needs to be renamed
+ }
+ 
+ famtab<-aggregate(famtab[-ncol(famtab)],by=list(famtab$Family),FUN="sum") #- to remove genus column, since it's not a col to sum
+ famtab<-t(famtab) #transpose for downstream metadata matching
+ colnames(famtab)<-famtab[1,]
+ famtab<-famtab[-1,]
+ 
+ file_name =paste(output_location,"Taxa\\taxa_Summary_family",count,".csv",sep="")
+ write.csv(famtab,file_name)
+ 
+ metatab <- as.data.frame(sample_data(a))
+ file_name =paste(output_location,"Taxa\\metadata_Summary_family",count,".csv",sep="")
+ write.csv(metatab,file_name)
+ count=count+1
+}
+
+#File ID's
+#1: Seq_controls
+#2: Ext_controls
+#3: Study
+```
+##################
+####################
+#######################
+
+#OTU tables
+```{r}
+for (a in output_run_list){
+ 
+ #Copy otu tables in case future project data is archived
+ file.copy(paste(output_location,a,"\\OTUs\\otu_table.csv",sep=""),paste(output_location,"Summary\\OTU\\",a,"_otu_table.csv",sep=""))
  
  otu_table_name<-paste("otu_",a,sep="")
  
- assign(otu_table_name,read.csv(paste(project_location,"Summary\\OTU\\",a,"_otu_table.csv",sep="")))
+ assign(otu_table_name,read.csv(paste(output_location,"Summary\\OTU\\",a,"_otu_table.csv",sep="")))
 }
 
 ```
 
 #Compare OTU tables
 ```{r}
-#Determine if there are differences in the OTU read counts between the three stochastic runs
+#Determine if there are differences in the OTU read counts between the three stochastic runs 
+#NOTE: This is after downsampling has occured
 otu_diff_1to2 <- compare_df(otu_R_Run1,otu_R_Run2)
 otu_diff_1to3 <- compare_df(otu_R_Run1,otu_R_Run3)
 otu_diff_2to3 <- compare_df(otu_R_Run3,otu_R_Run3)
@@ -49,14 +559,14 @@ otu_diff_2to3 <- compare_df(otu_R_Run3,otu_R_Run3)
 #Read in Observed/Expected Tables
 ```{r}
 #Move taxa tables to summary document for easy access, read in the tables
-for (a in run_list){
+for (a in output_run_list){
  
  for (b in taxa_level){
-   file.copy(paste(project_location,a,"\\Data\\Baseline\\observed_baseline_",b,"_seqcontrols.csv",sep=""),paste(project_location,"Summary\\",b,"\\",a,"_observed_baseline_seqcontrols.csv",sep=""))
+   file.copy(paste(output_location,a,"\\Data\\Baseline\\observed_baseline_",b,"_seqcontrols.csv",sep=""),paste(output_location,"Summary\\",b,"\\",a,"_observed_baseline_seqcontrols.csv",sep=""))
  
  obs_table_name<-paste("obs_",a,"_",b,sep="")
  
- assign(obs_table_name,read.csv(paste(project_location,"Summary\\",b,"\\",a,"_observed_baseline_seqcontrols.csv",sep=""),row.names=1))
+ assign(obs_table_name,read.csv(paste(output_location,"Summary\\",b,"\\",a,"_observed_baseline_seqcontrols.csv",sep=""),row.names=1))
  }
 }
 
@@ -75,7 +585,7 @@ for (a in run_list){
 control_list<-c("MSA1000","MSA1001","MSA1002","MSA1003","D6305","D6306","D6311")
 obs_merged<-data.frame()
 
-for (a in run_list){
+for (a in output_run_list){
  for (b in taxa_level){
   table_name<-(paste("obs",a,b,sep="_"))
   tmp<-get(table_name)
@@ -93,5 +603,5 @@ for (a in run_list){
  }
 }
   
-write.csv(obs_merged,paste(project_location,"Summary\\obs_diffs.csv",sep=""))
+write.csv(obs_merged,paste(output_location,"Summary\\obs_diffs.csv",sep=""))
 ```
