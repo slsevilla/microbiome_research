@@ -53,7 +53,8 @@ project_name=c("Project_NP0084_MB4\\")
 run_list=c("Stochastic_Run1","Stochastic_Run2","Stochastic_Run3")
 manifest_name=c("NP0084-MB4_08_29_19_metadata_seq.txt")
 
-output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\")
+output_location_sto=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\")
+output_location_seq=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Seq\\")
 
 sample_depth=100000
 reference_db="greengenes"
@@ -73,15 +74,15 @@ taxa_levels=c("Family","Genus")
 sub_create<-c("Data","Data\\Summary","Data\\Baseline","OTUs","Taxa","Graphs","Graphs\\Summary","Graphs\\Baseline")
 
 for (a in output_run_list){
- dir.create(paste(output_location,a,sep=""))
+ dir.create(paste(output_location_sto,a,sep=""))
  
  for (b in sub_create){
-  dir.create(paste(output_location,a,"\\",b,sep=""))
+  dir.create(paste(output_location_sto,a,"\\",b,sep=""))
  }
 }
 
 #Create one summary dir for misc. files
-dir.create(paste(output_location,"Summary",sep=""))
+dir.create(paste(output_location_sto,"Summary",sep=""))
 ```
 
 #Create PhySeq Objects
@@ -134,9 +135,9 @@ for (a in run_list){
  phy_name<-paste("physeq_complete",count,sep="")
  
  s<-summary(sample_data(get(phy_name)))
- capture.output(s, file = paste(output_location,output_run_list[count],"\\Data\\Summary\\summary_prefilter_",a,".txt",sep=""))
+ capture.output(s, file = paste(output_location_sto,output_run_list[count],"\\Data\\Summary\\summary_prefilter_",a,".txt",sep=""))
  o<-otu_table(get(phy_name))
- write.csv(o, file = paste(output_location,output_run_list[count],"\\OTUs\\otu_table_",a,".csv",sep=""))
+ write.csv(o, file = paste(output_location_sto,output_run_list[count],"\\OTUs\\otu_table_",a,".csv",sep=""))
  
  count=count+1
 }
@@ -162,9 +163,9 @@ for (a in run_list){
 
  #Print summaries
  s<-summary(sample_data(get(phy_filt_name))$Sample.Cat)
- capture.output(s, file = paste(output_location,output_run_list[count],"\\Data\\Summary\\summary_prefilter_sample_",a,".Cat.txt",sep=""))
+ capture.output(s, file = paste(output_location_sto,output_run_list[count],"\\Data\\Summary\\summary_prefilter_sample_",a,".Cat.txt",sep=""))
  s<-summary(sample_data(get(phy_filt_name))$Sample.Descrip)
- capture.output(s, file = paste(output_location,output_run_list[count],"\\Data\\Summary\\summary_prefilter_sample_",a,".Descrip.txt",sep=""))
+ capture.output(s, file = paste(output_location_sto,output_run_list[count],"\\Data\\Summary\\summary_prefilter_sample_",a,".Descrip.txt",sep=""))
  
  count=count+1
 }
@@ -184,7 +185,7 @@ for (a in run_list){
 
  
  o<-otu_table(get(phy_name))
- write.csv(o, file = paste(output_location,output_run_list[count],"\\OTUs\\otu_table_filt_",a,".csv",sep=""))
+ write.csv(o, file = paste(output_location_sto,output_run_list[count],"\\OTUs\\otu_table_filt_",a,".csv",sep=""))
 
  count=count+1
 }
@@ -245,11 +246,11 @@ for (a in output_run_list){
   colnames(taxtab)<-taxtab[1,]
   taxtab<-taxtab[-1,]
   
-  file_name =paste(output_location,a,"\\Taxa\\taxa_Summary_",b,"_",run_list[count],".csv",sep="")
+  file_name =paste(output_location_sto,a,"\\Taxa\\taxa_Summary_",b,"_",run_list[count],".csv",sep="")
   write.csv(taxtab,file_name)
  
   metatab <- as.data.frame(sample_data(get(phy_filt_name)))
-  file_name =paste(output_location,a,"\\Taxa\\metadata_Summary_",b,"_",run_list[count],".csv",sep="")
+  file_name =paste(output_location_sto,a,"\\Taxa\\metadata_Summary_",b,"_",run_list[count],".csv",sep="")
   write.csv(metatab,file_name)
  }
  count=count+1
@@ -263,7 +264,7 @@ count=1
 for (a in output_run_list){
  
  otu_table_name<-paste("otu_",a,sep="")
- assign(otu_table_name,read.csv(paste(output_location,a,"\\OTUs\\otu_table_filt_",run_list[count],".csv",sep="")))
+ assign(otu_table_name,read.csv(paste(output_location_sto,a,"\\OTUs\\otu_table_filt_",run_list[count],".csv",sep="")))
  
  count=count+1
 }
@@ -283,6 +284,22 @@ otu_diff_2to3 <- compare_df(otu_R_Run3,otu_R_Run3)
 
 ################## Adapted from 2. Baseline_Seq
 #NOTE: Will only use R_Run1 for the rest of the analysis, as all OTU information was the same, therefore taxonomic information will not vary
+#Directory Creation
+```{r}
+#Create directories - One for each output location, and the following subdirectories:
+sub_create<-c("Data", "OTUs", "Taxa", "Graphs")
+
+for (a in taxa_levels){
+ dir.create(paste(output_location_seq,a,sep=""))
+ 
+ for (b in sub_create){
+  dir.create(paste(output_location_seq,a,"\\",b,sep=""))
+ }
+}
+
+#Create one summary dir for misc. files
+dir.create(paste(output_location_seq,"Summary",sep=""))
+```
 
 #Taxonomy Reference
 ```{r}
@@ -302,7 +319,7 @@ for (a in taxa_levels){
 ```{r}
 for (a in taxa_levels){
  tax_table_name<-paste("taxa",a,sep="_")
- assign(tax_table_name,read.csv(paste(output_location,output_run_list[1],"\\Taxa\\taxa_Summary_",b,"_",run_list[1],".csv",sep=""),row.names=1))
+ assign(tax_table_name,read.csv(paste(output_location_sto,output_run_list[1],"\\Taxa\\taxa_Summary_",b,"_",run_list[1],".csv",sep=""),row.names=1))
 }
 
 taxa_Family$Total_OTUs<-rowSums(taxa_Family)
@@ -311,9 +328,9 @@ taxa_Genus$Total_OTUs<-rowSums(taxa_Genus)
 
 #Observed to Expected Counts
 ```{r}
-samplelist_seqcontrols<-rownames(otu_baseline_complete)
+samplelist_seqcontrols<-rownames(physeq_complete1)
 observed_baseline_seqcontrols<- data.frame()
-taxa_observed=colnames(otu_baseline_complete)
+taxa_observed=colnames(physeq_complete1)
 taxa_observed=taxa_observed[-length(taxa_observed)]#Remove Total_OTUs
 
 observed_count=0
@@ -374,7 +391,7 @@ for (a in source_list){
  count=0
 }
 
-write.csv(observed_baseline_seqcontrols,paste(output_location,"Data\\Baseline\\observed_baseline_",taxa_level,"_seqcontrols.csv",sep=""))
+write.csv(observed_baseline_seqcontrols,paste(output_location_sto,"Data\\Baseline\\observed_baseline_",taxa_level,"_seqcontrols.csv",sep=""))
 ```
 
 #Relative Abundance  - Seq Controls
@@ -404,7 +421,7 @@ for (a in samplelist_seqcontrols){
 
 relabun_baseline_seqcontrols[is.na(relabun_baseline_seqcontrols)]=0 #replace na's with 0
 relabun_baseline_seqcontrols[relabun_baseline_seqcontrols=="A"]=0 #replace A's with 0
-write.csv(relabun_baseline_seqcontrols,paste(output_location,"Data\\Baseline\\relabun_baseline_seqcontrols.csv",sep=""))
+write.csv(relabun_baseline_seqcontrols,paste(output_location_sto,"Data\\Baseline\\relabun_baseline_seqcontrols.csv",sep=""))
 ```
 
 #6 Plot graph - IntraControl Variability
@@ -427,7 +444,7 @@ for (a in output_run_list){
   
   taxa_table_name<-paste("obs_",a,"_",b,sep="")
   
-  assign(taxa_table_name,read.csv(paste(output_location,"\\Taxa\\",b,"\\",a,"_observed_baseline_seqcontrols.csv",sep=""),row.names=1))
+  assign(taxa_table_name,read.csv(paste(output_location_sto,"\\Taxa\\",b,"\\",a,"_observed_baseline_seqcontrols.csv",sep=""),row.names=1))
  }
 }
 
@@ -464,5 +481,5 @@ for (a in output_run_list){
  }
 }
   
-write.csv(obs_merged,paste(output_location,"Summary\\obs_diffs.csv",sep=""))
+write.csv(obs_merged,paste(output_location_sto,"Summary\\obs_diffs.csv",sep=""))
 ```
