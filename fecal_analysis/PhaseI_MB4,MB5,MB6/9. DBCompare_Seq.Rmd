@@ -68,7 +68,19 @@ output_run_list=c("R_Run1")
 taxa_levels=c("Family","Genus")
 ```
 
+
 ############### Adapted from 1. Initital Processing code for fecal analysis
+#Directory Creation
+```{r}
+#Create directories - One for each output location, and the following subdirectories:
+sub_create<-c("OTUs","Taxa","Graphs","Summary")
+
+for (a in sub_create){
+  dir.create(paste(output_location_seq,a,sep=""))
+}
+
+```
+
 #Create PhySeq Objects
 ```{r}
 count=1
@@ -157,7 +169,7 @@ for (a in reference_db){
 
  
  o<-otu_table(get(phy_name))
- write.csv(o, file = paste(output_location_seq,"Summary\\otu_table_filt_",a,".csv",sep=""))
+ write.csv(o, file = paste(output_location_seq,"OTUs\\otu_table_filt_",a,".csv",sep=""))
 }
 
 ```
@@ -241,11 +253,11 @@ for (a in reference_db){
   taxtab<-taxtab[-1,]
   colnames(taxtab) <- gsub(" ", "", colnames(taxtab)) #Remove any spaces in names
    
-  file_name =paste(output_location_seq,b,"\\Taxa\\taxa_",b,"_",a,".csv",sep="")
+  file_name =paste(output_location_seq,"Taxa\\taxa_",b,"_",a,".csv",sep="")
   write.csv(taxtab,file_name)
    
   metatab <- as.data.frame(sample_data(get(phy_filt_name)))
-  file_name =paste(output_location_seq,b,"\\Taxa\\metadata_Summary_",b,"_",a,".csv",sep="")
+  file_name =paste(output_location_seq,"Taxa\\metadata_Summary_",b,"_",a,".csv",sep="")
   write.csv(metatab,file_name)
  }
 }
@@ -257,7 +269,7 @@ for (a in reference_db){
 for (a in reference_db){
  for (b in taxa_levels){
   tax_table_name<-paste("taxa",b,a,sep="_")
-  assign(tax_table_name,read.csv(paste(output_location_seq,b,"\\Taxa\\taxa_",b,"_",a,".csv",sep=""),row.names = 1,check.names = FALSE))
+  assign(tax_table_name,read.csv(paste(output_location_seq,"Taxa\\taxa_",b,"_",a,".csv",sep=""),row.names = 1,check.names = FALSE))
  }
 }
 ```
@@ -287,7 +299,7 @@ for (a in taxa_levels){
  ven_plot<-draw.triple.venn(a1,a2,a3,n12,n23,n13,n123,category = c("Silva119","Silva132","GreenGenes"),fil=c("blue","red","green"))
  final<-grid.arrange(gTree(children=ven_plot),top=paste("Venn Diagram of Tax at ",a," level",sep=""))
  
- tiff(paste(output_location_seq,a,"\\Graphs\\venn_",b,".tiff",sep=""),compression="lzw")
+ tiff(paste(output_location_seq,"\\Graphs\\venn_",a,".tiff",sep=""),compression="lzw")
  grid.draw(final)
  dev.off()
 }
