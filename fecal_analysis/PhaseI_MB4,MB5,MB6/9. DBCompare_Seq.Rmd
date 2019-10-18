@@ -184,77 +184,79 @@ for (a in reference_db){
    if(!a=="greengenes"){
     
     if(grepl("Unassigned",taxa)){ #Silva has unassigned tax 
-     rownames(taxtab)[rownames(taxtab)==c]<-"Unassigned"
+     taxtab[c,b]<-"Unassigned"
       
      #Genus and family levels will be named different (genus: D5, family: D4)
      #If Genus
     } else if(b=="Genus"){
      if(!grepl("D_5__",taxa)){ #if the name includes a D_ and number less than 5, it will be from a higher tax level
-      rownames(taxtab)[rownames(taxtab)==c]<-"HigherGenus"
+      taxtab[c,b]<-"HigherGenus"
      } else{
-      colname_update<-gsub("D_\\d__","",c) #Need to remove the formatting of taxonmy for each viewing downstream
-      rownames(taxtab)[rownames(taxtab)==c]<-colname_update
+      colname_update<-gsub("D_\\d__","",taxa) #Need to remove the formatting of taxonmy for each viewing downstream
+      taxtab[c,b]<-colname_update
      }
      #If not Genus
     } else
      if(!grepl("D_4__",taxa)){
-      rownames(taxtab)[rownames(taxtab)==c]<-"HigherFamily"
+      taxtab[c,b]<-"HigherFamily"
      } else{
-      colname_update<-gsub("D_\\d__","",c)
-      rownames(taxtab)[rownames(taxtab)==c]<-colname_update
+      colname_update<-gsub("D_\\d__","",taxa)
+      taxtab[c,b]<-colname_update
      }
     #If greengenes
     } else{    
      if(b=="Genus"){
       if(!grepl("g__",taxa)){
-       rownames(taxtab)[rownames(taxtab)==c]<-"HigherGenus"
+       taxtab[c,b]<-"HigherGenus"
       } else{
        colname_update<-str_remove(c, "g__") #Need to remove the formatting of taxonmy for each viewing downstream
-       rownames(taxtab)[rownames(taxtab)==c]<-colname_update
+       taxtab[c,b]<-colname_update
       }
      #If higher than genus
      } else{
       if(!grepl("f__",taxa)){
-       rownames(taxtab)[rownames(taxtab)==c]<-"HigherFamily"
+       taxtab[c,b]<-"HigherFamily"
       } else{
        colname_update<-str_remove(c, "f__") #Need to remove the formatting of taxonmy for each viewing downstream
-       rownames(taxtab)[rownames(taxtab)==c]<-colname_update
+       taxtab[c,b]<-colname_update
       }
      }
     }
    ##########FIX HERE
-   #taxtab<-aggregate(taxtab[-ncol(taxtab)],by=list(taxtab[,b]),FUN="sum") #use -ncol since first col should not be summed
-   
-   #Check if there is a blank first column because any unassigned taxa (originally was "g__") will be blank due to above
-   if(taxtab[1,1]==""){
-    taxtab[1,1]<-"Unknown"
-   }
+   #colname_update<-gsub("[","",colname_update,fixed=TRUE) #fixed = TRUE disables regex
+   #colname_update<-gsub("]","",colname_update,fixed=TRUE)
   }
   
- #  taxtab<-t(taxtab) #transpose for downstream metadata matching
- #  colnames(taxtab)<-taxtab[1,]
- #  taxtab<-taxtab[-1,]
- #  
- #  file_name =paste(output_location_seq,b,"\\Taxa\\taxa_Summary_",b,"_",a,".csv",sep="")
- #  write.csv(taxtab,file_name)
- #  
- #  metatab <- as.data.frame(sample_data(get(phy_filt_name)))
- #  file_name =paste(output_location_seq,b,"\\Taxa\\metadata_Summary_",b,"_",a,".csv",sep="")
- #  write.csv(metatab,file_name)
- # }
+  taxtab<-aggregate(taxtab[-ncol(taxtab)],by=list(taxtab[,b]),FUN="sum") #use -ncol since first col should not be summed
+   
+  #Check if there is a blank first column because any unassigned taxa (originally was "g__") will be blank due to above
+  if(taxtab[1,1]==""){
+   taxtab[1,1]<-"Unknown"
+  }
+  
+  taxtab<-t(taxtab) #transpose for downstream metadata matching
+  colnames(taxtab)<-taxtab[1,]
+  taxtab<-taxtab[-1,]
+   
+  file_name =paste(output_location_seq,b,"\\Taxa\\taxa_",b,"_",a,".csv",sep="")
+  write.csv(taxtab,file_name)
+   
+  metatab <- as.data.frame(sample_data(get(phy_filt_name)))
+  file_name =paste(output_location_seq,b,"\\Taxa\\metadata_Summary_",b,"_",a,".csv",sep="")
+  write.csv(metatab,file_name)
+ }
 }
 ```
 
 ################## New Code
-#Read in raw OTU tables
+#Read in tax OTU tables
 ```{r}
 for (a in reference_db){
- 
- otu_table_name<-paste("otu_",a,sep="")
- assign(otu_table_name,read.csv(paste(output_location_seq,"Summary\\otu_table_filt_",a,".csv",sep="")))
- 
+ for (b in taxa_levels){
+  tax_table_name<-paste("taxa",b,a,sep="_")
+  assign(tax_table_name,read.csv(paste(output_location_seq,b,"\\Taxa\\taxa_",b,"_",a,".csv",sep="")))
+ }
 }
-
 ```
 
 #Compare OTU tables
