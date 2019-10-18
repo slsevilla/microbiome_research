@@ -1,0 +1,425 @@
+---
+title: "9. DB Comparisons_Seq"
+author: "Sevilla"
+date: "October 12, 2019"
+output: word_document
+editor_options: 
+  chunk_output_type: console
+---
+############### 
+#Project Overview
+To determine impact of updated Silva Database has on sequening control performance, using TAR and TDR as metrics.
+
+#QIIME2 Pipeline
+Version 1 of the pipeline was used (T:\DCEG\Projects\Microbiome\CGR_MB\MicroBiome\sc_scripts_qiime2_pipeline\working) for this test. Three runs were performed using the sample dataset on three different start days for a stochastic test. All runs were the same, and so R_Run1 was chosen for this analysis. Data was analyzed using Silva DB X and a trained Silva DB X. Output data is stored on the T Drive (T:\DCEG\Projects\Microbiome\CGR_MB\MicroBiome\Project_NP0084_MB4)
+
+#Sample Set
+Samples included in this anaysis were the sequencing controls of NP0084-MB4, MB5, and MB6, merged into one run. This includes a 43 controls samples of seven different mock communities and two blank-types. Blank-types were subsequently removed.
+-Project-ID: NP0084-MB4, NP0084-MB5, NP0084-MB6
+-Sample-Cat: MSA, Zymo.Seq
+-Sample-Descrip: MSA1000, MSA1001, MSA1002, MSA1003, D6305, D6306, D6311
+
+#Analysis Overview
+Phyloseq objects will be adapted from the analysis pipeline created for the fecal analysis of NP0084-MB4,MB5,MB6. This includes 1. Initial Processing which created the PhyloSeq objects from the three flowcells, and merged them together. OTU tables at two taxonomic levels (family and genus) were created during this step. and 2. Baseline_Seq which imported these taxonomic tables and merged the expected control information to created observed/expected data tables. Output data is stored on the T Drive (T:\DCEG\CGF\TechTransfer\Microbiome\Extraction\Optimization\Fecal\Fresh Fecal Optimization_2017.08\Phase I\Analysis\NP0084-MB4,5,6\R_Seq).
+
+OTU tables will be compared below 
+
+#Required libraries
+```{r}
+library("biom")
+library(ape)
+library(data.table)
+library(ggplot2)
+library(tm)
+library(vegan)
+library(tidyr)
+library(cowplot)
+library(scales)
+library(phyloseq)
+library(qiime2R)
+library(tibble)
+library(gridExtra)
+source("sources/miseqR.R")
+library(tidyverse)
+source("sources/ggrare.R") #github library: https://rdrr.io/github/gauravsk/ranacapa/
+library(compareDF)
+```
+
+#Input
+```{r}
+#Adapted from 1. Initital Processing code for fecal analysis
+data_dir = c("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\")
+project_name=c("Project_NP0084_MB4\\")
+run_list=c("DB_Variations")
+manifest_name=c("NP0084-MB4_08_29_19_metadata_seq.txt")
+
+output_location_sto=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\")
+output_location_seq=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_DB_Seq\\")
+
+sample_depth=100000
+reference_db=c("silva","silva132","greengenes")
+
+#Adapted from 2. Baseline_Seq
+control_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Controls\\Taxonomy\\")
+
+#New Code Requirements
+output_run_list=c("R_Run1")
+taxa_levels=c("Family","Genus")
+```
+
+############### Adapted from 1. Initital Processing code for fecal analysis
+#Create PhySeq Objects
+```{r}
+count=1
+for (a in reference_db){
+  run_data_dir = paste(data_dir,project_name,run_list,sep="")
+ 
+  #Read OTUS
+  otus<-read_qza(paste(run_data_dir,"\\Output\\qza_results\\table_dada2_qza_merged_parts_final\\table_dada2_merged_final_filt.qza",sep=""))
+  
+  #Read rooted tree
+  tree<-read_qza(paste(run_data_dir,"\\Output\\qza_results\\phylogeny_qza_results\\rooted_tree.qza",sep=""))
+  
+  #Read taxonomy file
+  taxonomy<-read_qza(paste(run_data_dir,"\\Output\\qza_results\\taxonomy_qza_results\\taxonomy_",a,".qza",sep=""))
+  
+  #Edit table
+  tax_table<-do.call(rbind, strsplit(as.character(taxonomy$data$Taxon), ";"))
+  
+  col_list<-c("Kingdom","Phylum","Class","Order","Family","Genus","Species")
+  if(!(a=="greengenes")){
+   for (i in 8:ncol(tax_table)){
+    col_list[[i]]<-paste("Subspecies",i,sep="") #number of columns varies depending on database
+   }
+  }
+  
+  colnames(tax_table)<-col_list
+  rownames(tax_table)<-taxonomy$data$Feature.ID
+  
+  #read metadata
+  metadata<-read.table(paste(run_data_dir,manifest_name,sep="\\"),sep='\t', header=T, row.names=1, comment="")
+  
+  #Create phylo object
+  phyloname<-paste("physeq_complete_",a,sep="")
+  assign(phyloname,phyloseq(otu_table(otus$data, taxa_are_rows = T), phy_tree(tree$data), tax_table(tax_table), sample_data(metadata)))
+  
+  phylo_number=count #sets the number of phyloseq objects that will need to be merged downstream
+  count=count+1
+}
+```
+
+#Prune taxonmoy
+```{r}
+#Prune for bacteria only
+for (a in reference_db){
+ phy_name<-paste("physeq_complete_",a,sep="")
+ phy_filt_name<-paste("physeq_filt_",a,sep="")
+  
+ if(!(a=="greengenes")){
+  
+  assign(phy_filt_name,get(phy_name) %>%
+   subset_taxa(
+     Kingdom == "D_0__Bacteria" &
+     Family  != "D_0__Bacteria; D_1__Proteobacteria; D_2__Alphaproteobacteria; D_3__Rickettsiales; D_4__mitochondria" &
+     Class   != "D_0__Bacteria; D_1__Cyanobacteria; D_2__Chloroplast"
+   ))
+ } else{
+   assign(phy_filt_name,get(phy_name) %>%
+   subset_taxa(
+     Kingdom == "k__Bacteria" &
+     Family  != "k__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rickettsiales; f__mitochondria" &
+     Class   != "k__Bacteria; p__Cyanobacteria; c__Chloroplast"
+   ))
+  
+ }
+
+
+ #Print summaries
+ s<-summary(sample_data(get(phy_filt_name))$Sample.Cat)
+ capture.output(s, file = paste(output_location_seq,"Summary\\summary_prefilter_sample_",a,".Cat.txt",sep=""))
+ s<-summary(sample_data(get(phy_filt_name))$Sample.Descrip)
+ capture.output(s, file = paste(output_location_seq,"Summary\\summary_prefilter_sample_",a,".Descrip.txt",sep=""))
+ 
+}
+
+```
+
+#Filter taxa >.001, filter samples with less than 10000 read
+```{r}
+#NOTE: Samples should have been filtered during Q2 pipeline - done to ensure this was completed
+for (a in reference_db){
+ phy_filt_name<-paste("physeq_filt_",a,sep="")
+ 
+ assign(phy_filt_name, filter_taxa(get(phy_filt_name), function(x) mean(x) > 1e-2, TRUE))
+ assign(phy_filt_name, prune_samples(sample_sums(get(phy_filt_name)) > 10000, get(phy_filt_name)))
+ assign(phy_filt_name, get(phy_filt_name) %>% scale_reads(n=sample_depth))
+
+ 
+ o<-otu_table(get(phy_name))
+ write.csv(o, file = paste(output_location_seq,"Summary\\otu_table_filt_",a,".csv",sep=""))
+}
+
+```
+
+#Merge OTU's into taxa tables
+```{r}
+for (a in reference_db){
+ phy_filt_name<-paste("physeq_filt_",a,sep="")
+
+ for (b in taxa_levels){
+  
+  # Create a factor corresponding to the taxalevel
+  taxfac = factor(tax_table(get(phy_filt_name))[, b])
+  
+  # Tabulate the counts for each genera in each sample
+  taxtab = apply(otu_table(get(phy_filt_name)), MARGIN = 2, function(x) {
+   tapply(x, INDEX = taxfac, FUN = sum, na.rm = TRUE, simplify = TRUE)
+  })
+  taxtab<-as.data.frame(taxtab)
+  
+  for (c in rownames(taxtab)){
+   taxa<-c
+   #Greengenes and silva have different taxonomic naming schemes - must address each
+   #If silva
+   if(!a=="greengenes"){
+    
+    if(grepl("Unassigned",taxa)){ #Silva has unassigned tax 
+     rownames(taxtab)[rownames(taxtab)==c]<-"Unassigned"
+      
+     #Genus and family levels will be named different (genus: D5, family: D4)
+     #If Genus
+    } else if(b=="Genus"){
+     if(!grepl("D_5__",taxa)){ #if the name includes a D_ and number less than 5, it will be from a higher tax level
+      rownames(taxtab)[rownames(taxtab)==c]<-"HigherGenus"
+     } else{
+      colname_update<-gsub("D_\\d__","",c) #Need to remove the formatting of taxonmy for each viewing downstream
+      rownames(taxtab)[rownames(taxtab)==c]<-colname_update
+     }
+     #If not Genus
+    } else
+     if(!grepl("D_4__",taxa)){
+      rownames(taxtab)[rownames(taxtab)==c]<-"HigherFamily"
+     } else{
+      colname_update<-gsub("D_\\d__","",c)
+      rownames(taxtab)[rownames(taxtab)==c]<-colname_update
+     }
+    #If greengenes
+    } else{    
+     if(b=="Genus"){
+      if(!grepl("g__",taxa)){
+       rownames(taxtab)[rownames(taxtab)==c]<-"HigherGenus"
+      } else{
+       colname_update<-str_remove(c, "g__") #Need to remove the formatting of taxonmy for each viewing downstream
+       rownames(taxtab)[rownames(taxtab)==c]<-colname_update
+      }
+     #If higher than genus
+     } else{
+      if(!grepl("f__",taxa)){
+       rownames(taxtab)[rownames(taxtab)==c]<-"HigherFamily"
+      } else{
+       colname_update<-str_remove(c, "f__") #Need to remove the formatting of taxonmy for each viewing downstream
+       rownames(taxtab)[rownames(taxtab)==c]<-colname_update
+      }
+     }
+    }
+   ##########FIX HERE
+   #taxtab<-aggregate(taxtab[-ncol(taxtab)],by=list(taxtab[,b]),FUN="sum") #use -ncol since first col should not be summed
+   
+   #Check if there is a blank first column because any unassigned taxa (originally was "g__") will be blank due to above
+   if(taxtab[1,1]==""){
+    taxtab[1,1]<-"Unknown"
+   }
+  }
+  
+ #  taxtab<-t(taxtab) #transpose for downstream metadata matching
+ #  colnames(taxtab)<-taxtab[1,]
+ #  taxtab<-taxtab[-1,]
+ #  
+ #  file_name =paste(output_location_seq,b,"\\Taxa\\taxa_Summary_",b,"_",a,".csv",sep="")
+ #  write.csv(taxtab,file_name)
+ #  
+ #  metatab <- as.data.frame(sample_data(get(phy_filt_name)))
+ #  file_name =paste(output_location_seq,b,"\\Taxa\\metadata_Summary_",b,"_",a,".csv",sep="")
+ #  write.csv(metatab,file_name)
+ # }
+}
+```
+
+################## New Code
+#Read in raw OTU tables
+```{r}
+for (a in reference_db){
+ 
+ otu_table_name<-paste("otu_",a,sep="")
+ assign(otu_table_name,read.csv(paste(output_location_seq,"Summary\\otu_table_filt_",a,".csv",sep="")))
+ 
+}
+
+```
+
+#Compare OTU tables
+```{r}
+#Determine if there are differences in the OTU read counts between the three stochastic runs 
+#NOTE: This is after downsampling has occured
+otu_diff_119to132 <- compare_df(otu_silva,otu_silva132)
+#Result: Tables are the same. No comparison needed at taxonomy levels.
+
+#Compare OTU before any filtering
+o<-otu_table(physeq_complete_silva)
+o2<-otu_table(physeq_complete_silva)
+otu_diff_119to132 <- compare_df(o,o2)
+#Result: Tables are the same. No comparison needed at taxonomy levels.
+
+#Taxonomic file
+o<-as.data.frame(tax_table(physeq_complete_silva))
+o2<-as.data.frame(tax_table(physeq_complete_silva))
+o<-o[,1:15]
+o2<-o2[,1:15]
+otu_diff_119to132 <- compare_df(o,o2)
+
+#Result: Tables are the same. No comparison needed at taxonomy levels.
+```
+
+################## Adapted from 2. Baseline_Seq
+#NOTE: Will only use R_Run1 for the rest of the analysis, as all OTU information was the same, therefore taxonomic information will not vary
+#Directory Creation
+```{r}
+#Create directories - One for each output location, and the following subdirectories:
+sub_create<-c("Data", "OTUs", "Taxa", "Graphs")
+
+for (a in taxa_levels){
+ dir.create(paste(output_location_seq,a,sep=""))
+ 
+ for (b in sub_create){
+  dir.create(paste(output_location_seq,a,"\\",b,sep=""))
+ }
+}
+
+#Create one summary dir for misc. files
+dir.create(paste(output_location_seq,"Summary",sep=""))
+```
+
+#Taxonomy Reference
+```{r}
+#Read in controls taxonomy file, grouped by taxa
+count=1
+for (a in taxa_levels){
+ expected_name<-paste("expected_taxa_",a,sep="")
+
+ assign(expected_name,read.table(paste(control_location,"Taxonomy_",a,"_2019.txt",sep=""),sep="\t",header=TRUE,row.names=count+6))
+ 
+ write.csv(get(expected_name),paste(output_location_seq,a,"\\Taxa\\Taxonomy",a,"_reference_2019.csv",sep=""))
+ 
+ assign(expected_name,get(expected_name)[-1])
+ count=count+1
+}
+```
+
+#Store in taxa tables
+```{r}
+for (a in taxa_levels){
+ tax_table_name<-paste("taxa",a,sep="_")
+ assign(tax_table_name,read.csv(paste(output_location_sto,output_run_list[1],"\\Taxa\\taxa_Summary_",a,"_",run_list[1],".csv",sep=""),row.names=1))
+ write.csv(get(tax_table_name),paste(output_location_seq,a,"\\Taxa\\Taxonomy",a,"_2019.csv",sep=""))
+}
+
+taxa_Family$Total_OTUs<-rowSums(taxa_Family)
+taxa_Genus$Total_OTUs<-rowSums(taxa_Genus)
+```
+
+#Observed to Expected Counts
+```{r}
+#Will perform observed : expected counts on all seq mock communities
+sample_list<-subset(sample_data(physeq_complete1),!sample_data(physeq_complete1)$Source.Descrip=="PCR.Blank")
+sample_list<-subset(sample_list,!sample_list$Source.Descrip=="NTC.Blank")
+sample_list<-rownames(sample_list) #contains only MSA and Zymo Controls
+
+sample_list<-intersect(sample_list,rownames(taxa_Family)) #Removes any samples that did not meet required OTU threshold
+
+obs_exp_tar_tdr<-data.frame()
+observed_expected=0
+expected_notobserved=0
+
+for (a in taxa_levels){
+ for (b in sample_list){
+   source_temp <- metadata[b,"Source.Descrip"] 
+   
+   #need to create taxa lists specific for the control being analyzed
+   taxa_list <- get(paste("expected_taxa_",a,sep=""))
+   taxa_list <- row.names(subset(taxa_list,!(taxa_list[,source_temp]=="A")))
+   taxa_temp <- get(paste("taxa_",a,sep=""))
+   
+   for (c in taxa_list){
+    otu_count <- taxa_temp[b,c]
+    
+    if(!(is.na(otu_count) || is.null(otu_count) || otu_count==0)){
+     observed_expected=observed_expected+1
+    } else{
+     expected_notobserved=expected_notobserved+1
+    }
+   }
+   
+   obs_exp_tar_tdr[b,"Source.Descrip"]<-metadata[b,"Source.Descrip"]
+   obs_exp_tar_tdr[b,paste("Expected_",a,sep="")]<-length(taxa_list)
+
+   obs_exp_tar_tdr[b,paste("TP_",a,sep="")]<-observed_expected
+   #total-1 for total OTU column
+   obs_exp_tar_tdr[b,paste("FP_",a,sep="")]<-sum(taxa_temp[b,]>1)-1-observed_expected
+   obs_exp_tar_tdr[b,paste("FN_",a,sep="")]<-expected_notobserved
+   
+   obs_exp_tar_tdr[b,paste("TAR_",a,sep="")]<-obs_exp_tar_tdr[b,paste("TP_",a,sep="")]/(obs_exp_tar_tdr[b,paste("TP_",a,sep="")]+obs_exp_tar_tdr[b,paste("FP_",a,sep="")])
+   obs_exp_tar_tdr[b,paste("TDR_",a,sep="")]<-obs_exp_tar_tdr[b,paste("TP_",a,sep="")]/(obs_exp_tar_tdr[b,paste("TP_",a,sep="")]+obs_exp_tar_tdr[b,paste("FN_",a,sep="")])
+   
+   
+
+   observed_expected=0
+   expected_notobserved=0
+ }
+}
+ 
+#Average by Source.Descrip
+source_types<-unique(subset(sample_data(physeq_complete1),!sample_data(physeq_complete1)$Source.Descrip=="PCR.Blank")$Source.Descrip)
+source_types<-subset(source_types,!source_types==c("NTC.Blank","PCR.Bank"))
+
+total_tp=0
+total_fp=0
+total_fn=0
+total_expected=0
+sample_count=0
+
+for (a in taxa_levels){
+ for (b in source_types){
+   for (c in sample_list){
+    
+    source_temp <- metadata[c,"Source.Descrip"] 
+
+    if(source_temp==b){
+     total_expected<-obs_exp_tar_tdr[c,paste("Expected_",a,sep="")]
+     total_tp<-obs_exp_tar_tdr[c,paste("TP_",a,sep="")]+total_tp
+     total_fp<-obs_exp_tar_tdr[c,paste("FP_",a,sep="")]+total_fp
+     total_fn<-obs_exp_tar_tdr[c,paste("FN_",a,sep="")]+total_fn
+     
+     sample_count=sample_count+1
+    }
+  }
+  obs_exp_tar_tdr[b,"Source.Descrip"]<-b
+  obs_exp_tar_tdr[b,paste("Expected_",a,sep="")]<-total_expected/sample_count
+  obs_exp_tar_tdr[b,paste("TP_",a,sep="")]<-total_tp/sample_count
+  obs_exp_tar_tdr[b,paste("FP_",a,sep="")]<-total_fp/sample_count
+  obs_exp_tar_tdr[b,paste("FN_",a,sep="")]<-total_fp/sample_count
+  obs_exp_tar_tdr[b,paste("TAR_",a,sep="")]<-total_tp/(total_tp+total_fp)
+  obs_exp_tar_tdr[b,paste("TDR_",a,sep="")]<-total_tp/(total_tp+total_fn)
+  
+  
+  total_tp=0
+  total_fp=0
+  total_fn=0
+  total_expected=0
+  sample_count=0
+ }
+}
+
+obs_exp_tar_tdr
+
+write.csv(obs_exp_tar_tdr,paste(output_location_seq,"Summary\\obs_exp_tar_tdr.csv",sep="")) 
+```
