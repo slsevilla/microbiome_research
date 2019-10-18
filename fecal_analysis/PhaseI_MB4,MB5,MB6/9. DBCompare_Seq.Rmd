@@ -43,6 +43,7 @@ source("sources/miseqR.R")
 library(tidyverse)
 source("sources/ggrare.R") #github library: https://rdrr.io/github/gauravsk/ranacapa/
 library(compareDF)
+library(VennDiagram)
 ```
 
 #Input
@@ -210,6 +211,8 @@ for (a in reference_db){
        taxtab[c,b]<-"HigherGenus"
       } else{
        colname_update<-str_remove(c, "g__") #Need to remove the formatting of taxonmy for each viewing downstream
+       colname_update<-gsub("[","",colname_update,fixed=TRUE) #fixed = TRUE disables regex
+       colname_update<-gsub("]","",colname_update,fixed=TRUE)
        taxtab[c,b]<-colname_update
       }
      #If higher than genus
@@ -218,25 +221,25 @@ for (a in reference_db){
        taxtab[c,b]<-"HigherFamily"
       } else{
        colname_update<-str_remove(c, "f__") #Need to remove the formatting of taxonmy for each viewing downstream
+       colname_update<-gsub("[","",colname_update,fixed=TRUE) #fixed = TRUE disables regex
+       colname_update<-gsub("]","",colname_update,fixed=TRUE)
        taxtab[c,b]<-colname_update
       }
      }
     }
-   ##########FIX HERE
-   #colname_update<-gsub("[","",colname_update,fixed=TRUE) #fixed = TRUE disables regex
-   #colname_update<-gsub("]","",colname_update,fixed=TRUE)
   }
   
   taxtab<-aggregate(taxtab[-ncol(taxtab)],by=list(taxtab[,b]),FUN="sum") #use -ncol since first col should not be summed
    
   #Check if there is a blank first column because any unassigned taxa (originally was "g__") will be blank due to above
-  if(taxtab[1,1]==""){
+  if(taxtab[1,1]==" "){
    taxtab[1,1]<-"Unknown"
   }
   
   taxtab<-t(taxtab) #transpose for downstream metadata matching
   colnames(taxtab)<-taxtab[1,]
   taxtab<-taxtab[-1,]
+  colnames(taxtab) <- gsub(" ", "", colnames(taxtab)) #Remove any spaces in names
    
   file_name =paste(output_location_seq,b,"\\Taxa\\taxa_",b,"_",a,".csv",sep="")
   write.csv(taxtab,file_name)
@@ -249,37 +252,46 @@ for (a in reference_db){
 ```
 
 ################## New Code
-#Read in tax OTU tables
+#Read in tax tables
 ```{r}
 for (a in reference_db){
  for (b in taxa_levels){
   tax_table_name<-paste("taxa",b,a,sep="_")
-  assign(tax_table_name,read.csv(paste(output_location_seq,b,"\\Taxa\\taxa_",b,"_",a,".csv",sep="")))
+  assign(tax_table_name,read.csv(paste(output_location_seq,b,"\\Taxa\\taxa_",b,"_",a,".csv",sep=""),row.names = 1,check.names = FALSE))
  }
 }
 ```
 
-#Compare OTU tables
+#Compare tax tables
 ```{r}
-#Determine if there are differences in the OTU read counts between the three stochastic runs 
-#NOTE: This is after downsampling has occured
-otu_diff_119to132 <- compare_df(otu_silva,otu_silva132)
-#Result: Tables are the same. No comparison needed at taxonomy levels.
+#Determine which taxa are in all db's, in silva db's only, and in silva119 or silva132
+for (a in taxa_levels){
+ #lengths of each
+ a1=length(colnames(get(paste("taxa",a,"silva",sep="_"))))
+ a2=length(colnames(get(paste("taxa",a,"silva132",sep="_"))))
+ a3=length(colnames(get(paste("taxa",a,"greengenes",sep="_"))))
+ 
+ #intersection list
+ i12<-intersect(colnames(get(paste("taxa",a,"silva",sep="_"))),colnames(get(paste("taxa",a,"silva132",sep="_"))))
+ i23<-intersect(colnames(get(paste("taxa",a,"silva132",sep="_"))),colnames(get(paste("taxa",a,"greengenes",sep="_"))))
+ i13<-intersect(colnames(get(paste("taxa",a,"silva",sep="_"))),colnames(get(paste("taxa",a,"greengenes",sep="_"))))
+ i123<-intersect(i12,colnames(get(paste("taxa",a,"greengenes",sep="_"))))
+ 
+ #intersection values
+ n12=length(i12)
+ n23=length(i23)
+ n13=length(i13)
+ n123=length(i123)
+ 
+ #Draw and save venn diagram
+ ven_plot<-draw.triple.venn(a1,a2,a3,n12,n23,n13,n123,category = c("Silva119","Silva132","GreenGenes"),fil=c("blue","red","green"))
+ final<-grid.arrange(gTree(children=ven_plot),top=paste("Venn Diagram of Tax at ",a," level",sep=""))
+ 
+ tiff(paste(output_location_seq,a,"\\Graphs\\venn_",b,".tiff",sep=""),compression="lzw")
+ grid.draw(final)
+ dev.off()
+}
 
-#Compare OTU before any filtering
-o<-otu_table(physeq_complete_silva)
-o2<-otu_table(physeq_complete_silva)
-otu_diff_119to132 <- compare_df(o,o2)
-#Result: Tables are the same. No comparison needed at taxonomy levels.
-
-#Taxonomic file
-o<-as.data.frame(tax_table(physeq_complete_silva))
-o2<-as.data.frame(tax_table(physeq_complete_silva))
-o<-o[,1:15]
-o2<-o2[,1:15]
-otu_diff_119to132 <- compare_df(o,o2)
-
-#Result: Tables are the same. No comparison needed at taxonomy levels.
 ```
 
 ################## Adapted from 2. Baseline_Seq
