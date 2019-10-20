@@ -308,61 +308,83 @@ for (a in taxa_levels){
 
 #OTU differences between databases
 ```{r}
+taxa_diffs<-function(input1,input2){
+ temp<-data.frame()
+ rowcount=1
+ for (a in rownames(input1)){
+  for (b in colnames(input1)){
+   temp[rowcount,"Source.Descrip"]<-metadata[a,"Source.Descrip"]
+   temp[rowcount,"PercDiff"]<-((input1[a,b]-input2[a,b])/input1[a,b])*100
+   temp[rowcount,"Taxa"]<-b
+   temp[rowcount,"SampleID"]<-a
+   rowcount=rowcount+1
+  }
+ }
+ return(temp)
+}
+
+bar_percdiff<-function(df1,genus,dbs,controltype){
+ if(controltype=="MSA"){
+  controls<-c("MSA1000","MSA1001","MSA1002","MSA1003")
+ } else{
+  controls<-c("D6305","D6306","D6311")
+ }
+ 
+ temp<-subset(df1,df1[,"Source.Descrip"]==controls)
+
+ ggplot(temp, aes(x = Source.Descrip, y = PercDiff)) +
+     geom_bar(stat = "identity", position = "dodge") +
+     labs(title=paste("Perecent Diff of ",genus,"- MSA Controls -", dbs,sep=""),
+          x="Wall Type",
+          y="Percent") +
+     facet_wrap(~ Taxa) +
+     theme_bw() +
+     theme(axis.text.x = element_text(colour = "grey20", size = 12, angle = 45, hjust = 0.5, vjust = 0.5),
+           axis.text.y = element_text(colour = "grey20", size = 12),
+           text = element_text(size = 16))
+}
+
 #Family
+#GreenGenes to Silva119
 setdiff(taxa_Family_greengenes,taxa_Family_silva)
 temp1<-subset(taxa_Family_greengenes,select=-c(Clostridiaceae, Pseudomonadaceae))
 temp2<-subset(taxa_Family_silva,select=-c(Listeriaceae, Clostridiaceae1))
+setdiff(temp1,temp2) #should have no error
 
-family_diff_gto119<-data.frame()
-for (a in rownames(temp1)){
- for (b in colnames(temp1)){
-  family_diff_gto119[a,b]<-abs(temp1[a,b]-temp2[a,b])
- }
-}
+taxa_db_diffs<-taxa_diffs(temp1,temp2)
+bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","MSA")
+bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","Zymo")
 
+#Silva119 to Silva132
 setdiff(taxa_Family_silva,taxa_Family_silva132)
 temp1<-subset(taxa_Family_silva,select=-c(Listeriaceae, Verrucomicrobiaceae))
 temp2<-subset(taxa_Family_silva132,select=-c(Akkermansiaceae, Pseudomonadaceae))
+setdiff(temp1,temp2) #should have no error
 
-family_diff_119to132<-data.frame()
-for (a in rownames(temp1)){
- for (b in colnames(temp1)){
-  family_diff_119to132[a,b]<-abs(temp1[a,b]-temp2[a,b])
- }
-}
+bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","MSA")
+bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","Zymo")
 
 #Genus
+#GreenGenes to Silva119
 setdiff(taxa_Genus_greengenes,taxa_Genus_silva)
 temp1<-subset(taxa_Genus_greengenes,select=-c(Rhodobacter, Roseburia, Clostridium, Escherichia, Unknown, Pseudomonas))
 temp2<-subset(taxa_Genus_silva,select=-c(uncultured, Clostridiumsensustricto1, Alistipes, Listeria, Pseudobutyrivibrio, Subdoligranulum, IncertaeSedis))
 temp2<-temp2[,-12] #remove Escherichia-Shigella
 setdiff(temp1,temp2)
 
-genus_diff_gto119<-data.frame()
-for (a in rownames(temp1)){
- for (b in colnames(temp1)){
-  genus_diff_gto119[a,b]<-abs(temp1[a,b]-temp2[a,b])
- }
-}
+bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","MSA")
+bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","Zymo")
 
+#Silva119 to Silva132
 setdiff(taxa_Genus_silva,taxa_Genus_silva132)
 temp1<-subset(taxa_Genus_silva,select=-c(uncultured, Prevotella, Listeria, Pseudobutyrivibrio, Ruminococcus, Propionibacterium, IncertaeSedis, Coprococcus))
 temp2<-subset(taxa_Genus_silva132,select=-c(Prevotella9, Rhodobacter, Roseburia, Ruminiclostridium5, Cutibacterium, Coprococcus2, Ruminococcus1, RuminococcaceaeNK4A214group, Pseudomonas, Prevotella7, Ruminococcus2))
 colnames(temp2)
 temp2<-temp2[,-c(1,23,24,25)] #Remove  RuminococcaceaeUCG-013,RuminococcaceaeUCG-002,RuminococcaceaeUCG-005, [Eubacterium]halliigroup
+setdiff(temp1,temp2)
 
-genus_diff_119to132<-data.frame()
-for (a in rownames(temp1)){
- for (b in colnames(temp1)){
-  genus_diff_119to132[a,b]<-abs(temp1[a,b]-temp2[a,b])
- }
-}
-
-write.csv(family_diff_gto119,paste(output_location_seq,"Taxa\\family_diff_gto119.csv",sep=""))
-write.csv(family_diff_119to132,paste(output_location_seq,"Taxa\\family_diff_119to132.csv",sep=""))
-write.csv(genus_diff_gto119,paste(output_location_seq,"Taxa\\genus_diff_gto119.csv",sep=""))
-write.csv(genus_diff_119to132,paste(output_location_seq,"Taxa\\genus_diff_119to132.csv",sep=""))
-
+bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","MSA")
+bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","Zymo")
 ```
 
 
