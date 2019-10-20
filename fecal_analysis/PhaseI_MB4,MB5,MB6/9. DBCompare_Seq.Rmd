@@ -306,6 +306,66 @@ for (a in taxa_levels){
 
 ```
 
+#OTU differences between databases
+```{r}
+#Family
+setdiff(taxa_Family_greengenes,taxa_Family_silva)
+temp1<-subset(taxa_Family_greengenes,select=-c(Clostridiaceae, Pseudomonadaceae))
+temp2<-subset(taxa_Family_silva,select=-c(Listeriaceae, Clostridiaceae1))
+
+family_diff_gto119<-data.frame()
+for (a in rownames(temp1)){
+ for (b in colnames(temp1)){
+  family_diff_gto119[a,b]<-abs(temp1[a,b]-temp2[a,b])
+ }
+}
+
+setdiff(taxa_Family_silva,taxa_Family_silva132)
+temp1<-subset(taxa_Family_silva,select=-c(Listeriaceae, Verrucomicrobiaceae))
+temp2<-subset(taxa_Family_silva132,select=-c(Akkermansiaceae, Pseudomonadaceae))
+
+family_diff_119to132<-data.frame()
+for (a in rownames(temp1)){
+ for (b in colnames(temp1)){
+  family_diff_119to132[a,b]<-abs(temp1[a,b]-temp2[a,b])
+ }
+}
+
+#Genus
+setdiff(taxa_Genus_greengenes,taxa_Genus_silva)
+temp1<-subset(taxa_Genus_greengenes,select=-c(Rhodobacter, Roseburia, Clostridium, Escherichia, Unknown, Pseudomonas))
+temp2<-subset(taxa_Genus_silva,select=-c(uncultured, Clostridiumsensustricto1, Alistipes, Listeria, Pseudobutyrivibrio, Subdoligranulum, IncertaeSedis))
+temp2<-temp2[,-12] #remove Escherichia-Shigella
+setdiff(temp1,temp2)
+
+genus_diff_gto119<-data.frame()
+for (a in rownames(temp1)){
+ for (b in colnames(temp1)){
+  genus_diff_gto119[a,b]<-abs(temp1[a,b]-temp2[a,b])
+ }
+}
+
+setdiff(taxa_Genus_silva,taxa_Genus_silva132)
+temp1<-subset(taxa_Genus_silva,select=-c(uncultured, Prevotella, Listeria, Pseudobutyrivibrio, Ruminococcus, Propionibacterium, IncertaeSedis, Coprococcus))
+temp2<-subset(taxa_Genus_silva132,select=-c(Prevotella9, Rhodobacter, Roseburia, Ruminiclostridium5, Cutibacterium, Coprococcus2, Ruminococcus1, RuminococcaceaeNK4A214group, Pseudomonas, Prevotella7, Ruminococcus2))
+colnames(temp2)
+temp2<-temp2[,-c(1,23,24,25)] #Remove  RuminococcaceaeUCG-013,RuminococcaceaeUCG-002,RuminococcaceaeUCG-005, [Eubacterium]halliigroup
+
+genus_diff_119to132<-data.frame()
+for (a in rownames(temp1)){
+ for (b in colnames(temp1)){
+  genus_diff_119to132[a,b]<-abs(temp1[a,b]-temp2[a,b])
+ }
+}
+
+write.csv(family_diff_gto119,paste(output_location_seq,"Taxa\\family_diff_gto119.csv",sep=""))
+write.csv(family_diff_119to132,paste(output_location_seq,"Taxa\\family_diff_119to132.csv",sep=""))
+write.csv(genus_diff_gto119,paste(output_location_seq,"Taxa\\genus_diff_gto119.csv",sep=""))
+write.csv(genus_diff_119to132,paste(output_location_seq,"Taxa\\genus_diff_119to132.csv",sep=""))
+
+```
+
+
 ################## Adapted from 2. Baseline_Seq
 #NOTE: Will only use R_Run1 for the rest of the analysis, as all OTU information was the same, therefore taxonomic information will not vary
 #Directory Creation
