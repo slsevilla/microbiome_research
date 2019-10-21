@@ -332,9 +332,9 @@ bar_percdiff<-function(df1,genus,dbs,controltype){
  
  temp<-subset(df1,df1[,"Source.Descrip"]==controls)
 
- ggplot(temp, aes(x = Source.Descrip, y = PercDiff)) +
+ plot<-ggplot(temp, aes(x = Source.Descrip, y = PercDiff)) +
      geom_bar(stat = "identity", position = "dodge") +
-     labs(title=paste("Perecent Diff of ",genus,"- MSA Controls -", dbs,sep=""),
+     labs(title=paste("%Diff: ",genus,"- ",dbs,"- ",controltype,sep=""),
           x="Wall Type",
           y="Percent") +
      facet_wrap(~ Taxa) +
@@ -342,6 +342,10 @@ bar_percdiff<-function(df1,genus,dbs,controltype){
      theme(axis.text.x = element_text(colour = "grey20", size = 12, angle = 45, hjust = 0.5, vjust = 0.5),
            axis.text.y = element_text(colour = "grey20", size = 12),
            text = element_text(size = 16))
+ 
+ tiff(paste(output_location_seq,"\\Graphs\\bar_",genus,"_",dbs,"_",controltype,".tiff",sep=""),compression="lzw")
+ grid.draw(plot)
+ dev.off()
 }
 
 #Family
@@ -349,42 +353,54 @@ bar_percdiff<-function(df1,genus,dbs,controltype){
 setdiff(taxa_Family_greengenes,taxa_Family_silva)
 temp1<-subset(taxa_Family_greengenes,select=-c(Clostridiaceae, Pseudomonadaceae))
 temp2<-subset(taxa_Family_silva,select=-c(Listeriaceae, Clostridiaceae1))
-setdiff(temp1,temp2) #should have no error
 
-taxa_db_diffs<-taxa_diffs(temp1,temp2)
-bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","MSA")
-bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","Zymo")
+#GreenGenes to Silva132
+setdiff(taxa_Family_greengenes,taxa_Family_silva132)
+temp3<-subset(taxa_Family_greengenes,select=-c(Clostridiaceae, Verrucomicrobiaceae))
+temp4<-subset(taxa_Family_silva132,select=-c(Akkermansiaceae, Clostridiaceae1))
 
 #Silva119 to Silva132
 setdiff(taxa_Family_silva,taxa_Family_silva132)
-temp1<-subset(taxa_Family_silva,select=-c(Listeriaceae, Verrucomicrobiaceae))
-temp2<-subset(taxa_Family_silva132,select=-c(Akkermansiaceae, Pseudomonadaceae))
-setdiff(temp1,temp2) #should have no error
-
-bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","MSA")
-bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","Zymo")
+temp5<-subset(taxa_Family_silva,select=-c(Listeriaceae, Verrucomicrobiaceae))
+temp6<-subset(taxa_Family_silva132,select=-c(Akkermansiaceae, Pseudomonadaceae))
 
 #Genus
 #GreenGenes to Silva119
 setdiff(taxa_Genus_greengenes,taxa_Genus_silva)
-temp1<-subset(taxa_Genus_greengenes,select=-c(Rhodobacter, Roseburia, Clostridium, Escherichia, Unknown, Pseudomonas))
-temp2<-subset(taxa_Genus_silva,select=-c(uncultured, Clostridiumsensustricto1, Alistipes, Listeria, Pseudobutyrivibrio, Subdoligranulum, IncertaeSedis))
-temp2<-temp2[,-12] #remove Escherichia-Shigella
-setdiff(temp1,temp2)
+temp7<-subset(taxa_Genus_greengenes,select=-c(Rhodobacter, Roseburia, Clostridium, Escherichia, Unknown, Pseudomonas))
+temp8<-subset(taxa_Genus_silva,select=-c(uncultured, Clostridiumsensustricto1, Alistipes, Listeria, Pseudobutyrivibrio, Subdoligranulum, IncertaeSedis))
+temp8<-temp8[,-12] #remove Escherichia-Shigella
 
-bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","MSA")
-bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","Zymo")
+#GreenGenes to Silva132
+setdiff(taxa_Genus_greengenes,taxa_Genus_silva132)
+temp9<-subset(taxa_Genus_greengenes,select=-c(Propionibacterium, Ruminococcus, Clostridium, Unknown, Prevotella, Coprococcus,Clostridium,Escherichia ))
+temp10<-subset(taxa_Genus_silva132,select=-c(Cutibacterium, Prevotella9, Alistipes, Subdoligranulum, Coprococcus2, Ruminococcus1, RuminococcaceaeNK4A214group, Prevotella7, Ruminococcus2, Ruminiclostridium5,Clostridiumsensustricto1))
+temp10<-temp10[,-c(1,12,24:26)] #remove Escherichia-Shigella, [Eubacterium]halliigroup,RuminococcaceaeUCG-005, Clostridiumsensustricto1, RuminococcaceaeUCG-002, RuminococcaceaeUCG-013.
+setdiff(temp9,temp10)
 
 #Silva119 to Silva132
 setdiff(taxa_Genus_silva,taxa_Genus_silva132)
-temp1<-subset(taxa_Genus_silva,select=-c(uncultured, Prevotella, Listeria, Pseudobutyrivibrio, Ruminococcus, Propionibacterium, IncertaeSedis, Coprococcus))
-temp2<-subset(taxa_Genus_silva132,select=-c(Prevotella9, Rhodobacter, Roseburia, Ruminiclostridium5, Cutibacterium, Coprococcus2, Ruminococcus1, RuminococcaceaeNK4A214group, Pseudomonas, Prevotella7, Ruminococcus2))
-colnames(temp2)
-temp2<-temp2[,-c(1,23,24,25)] #Remove  RuminococcaceaeUCG-013,RuminococcaceaeUCG-002,RuminococcaceaeUCG-005, [Eubacterium]halliigroup
-setdiff(temp1,temp2)
+temp11<-subset(taxa_Genus_silva,select=-c(uncultured, Prevotella, Listeria, Pseudobutyrivibrio, Ruminococcus, Propionibacterium, IncertaeSedis, Coprococcus))
+temp12<-subset(taxa_Genus_silva132,select=-c(Prevotella9, Rhodobacter, Roseburia, Ruminiclostridium5, Cutibacterium, Coprococcus2, Ruminococcus1, RuminococcaceaeNK4A214group, Pseudomonas, Prevotella7, Ruminococcus2))
+temp12<-temp12[,-c(1,23,24,25)] #Remove  RuminococcaceaeUCG-013,RuminococcaceaeUCG-002,RuminococcaceaeUCG-005, [Eubacterium]halliigroup
 
-bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","MSA")
-bar_percdiff(taxa_db_diffs,"Family","GreenGenes to Silva119","Zymo")
+#Run bar plots for each comparison
+database_compare<-c("GG-Silva119","GG-Silva132","Silva119-Silva132")
+control_type<-c("MSA","Zymo")
+count=1
+
+for (a in taxa_levels){
+ taxa_db_diffs<-taxa_diffs(get(paste("temp",count,sep="")),get(paste("temp",count+1,sep="")))
+ 
+ taxa_db_diffs<-subset(taxa_db_diffs,Taxa!="HigherGenus" & Taxa!="HigherFamily") #View the data without the "higher categories"
+ 
+ for (b in database_compare){
+  for (c in control_type){
+   bar_percdiff(taxa_db_diffs,a,b,c)
+  }
+  count=count+2
+ }
+}
 ```
 
 
