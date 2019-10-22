@@ -11,7 +11,7 @@ editor_options:
 To determine impact of updated Silva Database has on sequening control performance, using TAR and TDR as metrics.
 
 #QIIME2 Pipeline
-Version 1 of the pipeline was used (T:\DCEG\Projects\Microbiome\CGR_MB\MicroBiome\sc_scripts_qiime2_pipeline\working) for this test. Three runs were performed using the sample dataset on three different start days for a stochastic test. All runs were the same, and so R_Run1 was chosen for this analysis. Data was analyzed using Silva DB X and a trained Silva DB X. Output data is stored on the T Drive (T:\DCEG\Projects\Microbiome\CGR_MB\MicroBiome\Project_NP0084_MB4)
+Version 1 of the pipeline was used (T:\DCEG\Projects\Microbiome\CGR_MB\MicroBiome\sc_scripts_qiime2_pipeline\working) for this test. Three runs were performed using the sample dataset on three different start days for a stochastic test. All runs were the same, and so R_Run1 was chosen for this analysis. Data was analyzed using Silva119, GreenGenes, and an internally trained Silva132. Output data from the QIIME2 pipeline is stored on the T Drive (T:\DCEG\Projects\Microbiome\CGR_MB\MicroBiome\Project_NP0084_MB4)
 
 #Sample Set
 Samples included in this anaysis were the sequencing controls of NP0084-MB4, MB5, and MB6, merged into one run. This includes a 43 controls samples of seven different mock communities and two blank-types. Blank-types were subsequently removed.
@@ -145,7 +145,6 @@ for (a in reference_db){
    ))
   
  }
-
 
  #Print summaries
  s<-summary(sample_data(get(phy_filt_name))$Sample.Cat)
@@ -401,28 +400,13 @@ for (a in taxa_levels){
   count=count+2
  }
 }
+
+#Remove all temps
+remove(temp1,temp2,temp3,temp4,temp5,temp6,temp7,temp8,temp9,temp10,temp11,temp12)
 ```
 
 
 ################## Adapted from 2. Baseline_Seq
-#NOTE: Will only use R_Run1 for the rest of the analysis, as all OTU information was the same, therefore taxonomic information will not vary
-#Directory Creation
-```{r}
-#Create directories - One for each output location, and the following subdirectories:
-sub_create<-c("Data", "OTUs", "Taxa", "Graphs")
-
-for (a in taxa_levels){
- dir.create(paste(output_location_seq,a,sep=""))
- 
- for (b in sub_create){
-  dir.create(paste(output_location_seq,a,"\\",b,sep=""))
- }
-}
-
-#Create one summary dir for misc. files
-dir.create(paste(output_location_seq,"Summary",sep=""))
-```
-
 #Taxonomy Reference
 ```{r}
 #Read in controls taxonomy file, grouped by taxa
@@ -432,118 +416,76 @@ for (a in taxa_levels){
 
  assign(expected_name,read.table(paste(control_location,"Taxonomy_",a,"_2019.txt",sep=""),sep="\t",header=TRUE,row.names=count+6))
  
- write.csv(get(expected_name),paste(output_location_seq,a,"\\Taxa\\Taxonomy",a,"_reference_2019.csv",sep=""))
+ write.csv(get(expected_name),paste(output_location_seq,"\\Taxa\\Taxonomy",a,"_reference_2019.csv",sep=""))
  
  assign(expected_name,get(expected_name)[-1])
  count=count+1
 }
 ```
 
-#Store in taxa tables
-```{r}
-for (a in taxa_levels){
- tax_table_name<-paste("taxa",a,sep="_")
- assign(tax_table_name,read.csv(paste(output_location_sto,output_run_list[1],"\\Taxa\\taxa_Summary_",a,"_",run_list[1],".csv",sep=""),row.names=1))
- write.csv(get(tax_table_name),paste(output_location_seq,a,"\\Taxa\\Taxonomy",a,"_2019.csv",sep=""))
-}
-
-taxa_Family$Total_OTUs<-rowSums(taxa_Family)
-taxa_Genus$Total_OTUs<-rowSums(taxa_Genus)
-```
-
 #Observed to Expected Counts
 ```{r}
-#Will perform observed : expected counts on all seq mock communities
-sample_list<-subset(sample_data(physeq_complete1),!sample_data(physeq_complete1)$Source.Descrip=="PCR.Blank")
-sample_list<-subset(sample_list,!sample_list$Source.Descrip=="NTC.Blank")
-sample_list<-rownames(sample_list) #contains only MSA and Zymo Controls
+tp_fp_fn_samplelevel<- function(db,tl,ct){
+ sample_list<-intersect(rownames(get(paste("taxa",tl,db,sep="_"))),rownames(subset(metadata,Source.Descrip==ct)))
+ exp_taxa_list<-rownames(get(paste("expected_taxa",tl,sep="_"))[ get(paste("expected_taxa",tl,sep="_"))[[ct]] !='A' , ])
+ unexp_taxa_list<-setdiff(colnames(get(paste("taxa",tl,db,sep="_"))),exp_taxa_list)
 
-sample_list<-intersect(sample_list,rownames(taxa_Family)) #Removes any samples that did not meet required OTU threshold
+ for (a in sample_list){
+  fp=0
+  fn=0
+  tp=0
+  
+  taxa_db<-get(paste("taxa",tl,db,sep="_"))
+  
+  #Run through expected taxa list
+  for (b in exp_taxa_list){
+   otu_count<-taxa_db[a,b]
 
-obs_exp_tar_tdr<-data.frame()
-observed_expected=0
-expected_notobserved=0
-
-for (a in taxa_levels){
- for (b in sample_list){
-   source_temp <- metadata[b,"Source.Descrip"] 
    
-   #need to create taxa lists specific for the control being analyzed
-   taxa_list <- get(paste("expected_taxa_",a,sep=""))
-   taxa_list <- row.names(subset(taxa_list,!(taxa_list[,source_temp]=="A")))
-   taxa_temp <- get(paste("taxa_",a,sep=""))
-   
-   for (c in taxa_list){
-    otu_count <- taxa_temp[b,c]
-    
-    if(!(is.na(otu_count) || is.null(otu_count) || otu_count==0)){
-     observed_expected=observed_expected+1
-    } else{
-     expected_notobserved=expected_notobserved+1
-    }
+   if(is.null(otu_count) || otu_count==0 || is.na(otu_count)){
+    fn=fn+1
+
+   } else if (otu_count>0){
+    tp=tp+1
    }
-   
-   obs_exp_tar_tdr[b,"Source.Descrip"]<-metadata[b,"Source.Descrip"]
-   obs_exp_tar_tdr[b,paste("Expected_",a,sep="")]<-length(taxa_list)
-
-   obs_exp_tar_tdr[b,paste("TP_",a,sep="")]<-observed_expected
-   #total-1 for total OTU column
-   obs_exp_tar_tdr[b,paste("FP_",a,sep="")]<-sum(taxa_temp[b,]>1)-1-observed_expected
-   obs_exp_tar_tdr[b,paste("FN_",a,sep="")]<-expected_notobserved
-   
-   obs_exp_tar_tdr[b,paste("TAR_",a,sep="")]<-obs_exp_tar_tdr[b,paste("TP_",a,sep="")]/(obs_exp_tar_tdr[b,paste("TP_",a,sep="")]+obs_exp_tar_tdr[b,paste("FP_",a,sep="")])
-   obs_exp_tar_tdr[b,paste("TDR_",a,sep="")]<-obs_exp_tar_tdr[b,paste("TP_",a,sep="")]/(obs_exp_tar_tdr[b,paste("TP_",a,sep="")]+obs_exp_tar_tdr[b,paste("FN_",a,sep="")])
-   
-   
-
-   observed_expected=0
-   expected_notobserved=0
- }
-}
- 
-#Average by Source.Descrip
-source_types<-unique(subset(sample_data(physeq_complete1),!sample_data(physeq_complete1)$Source.Descrip=="PCR.Blank")$Source.Descrip)
-source_types<-subset(source_types,!source_types==c("NTC.Blank","PCR.Bank"))
-
-total_tp=0
-total_fp=0
-total_fn=0
-total_expected=0
-sample_count=0
-
-for (a in taxa_levels){
- for (b in source_types){
-   for (c in sample_list){
-    
-    source_temp <- metadata[c,"Source.Descrip"] 
-
-    if(source_temp==b){
-     total_expected<-obs_exp_tar_tdr[c,paste("Expected_",a,sep="")]
-     total_tp<-obs_exp_tar_tdr[c,paste("TP_",a,sep="")]+total_tp
-     total_fp<-obs_exp_tar_tdr[c,paste("FP_",a,sep="")]+total_fp
-     total_fn<-obs_exp_tar_tdr[c,paste("FN_",a,sep="")]+total_fn
-     
-     sample_count=sample_count+1
-    }
   }
-  obs_exp_tar_tdr[b,"Source.Descrip"]<-b
-  obs_exp_tar_tdr[b,paste("Expected_",a,sep="")]<-total_expected/sample_count
-  obs_exp_tar_tdr[b,paste("TP_",a,sep="")]<-total_tp/sample_count
-  obs_exp_tar_tdr[b,paste("FP_",a,sep="")]<-total_fp/sample_count
-  obs_exp_tar_tdr[b,paste("FN_",a,sep="")]<-total_fp/sample_count
-  obs_exp_tar_tdr[b,paste("TAR_",a,sep="")]<-total_tp/(total_tp+total_fp)
-  obs_exp_tar_tdr[b,paste("TDR_",a,sep="")]<-total_tp/(total_tp+total_fn)
   
+  #Run through all taxa not expected
+  for (b in unexp_taxa_list){
+   otu_count<-taxa_db[a,b]
+   
+   if(otu_count==0){
+    next;
+   } else if (otu_count>0){
+    fp=fp+1
+   }
+  }
   
-  total_tp=0
-  total_fp=0
-  total_fn=0
-  total_expected=0
-  sample_count=0
+  temp[a,"ControlType"]<-ct
+  temp[a,paste("TP",db,tl,sep="_")]<-tp
+  temp[a,paste("FP",db,tl,sep="_")]<-fp
+  temp[a,paste("FN",db,tl,sep="_")]<-fn
+  temp[a,paste("TAR",db,tl,sep="_")]<-tp/(tp+fp)
+  temp[a,paste("TDR",db,tl,sep="_")]<-tp/(tp+fn)
+ }
+ 
+ return(temp)
+}
+
+temp<-data.frame()
+
+control_type<-c("MSA1000","MSA1001","MSA1002","MSA1003","D6305","D6306","D6311")
+
+for(a in reference_db){
+ for (b in taxa_levels){
+  for (c in control_type){
+   temp<-tp_fp_fn_samplelevel(a,b,c)
+  }
  }
 }
 
-obs_exp_tar_tdr
+write.csv(temp,paste(output_location_seq,"\\Taxa\\Taxonomy_tar_tdr.csv",sep=""))
 
-write.csv(obs_exp_tar_tdr,paste(output_location_seq,"Summary\\obs_exp_tar_tdr.csv",sep="")) 
+remove(temp)
+
 ```
