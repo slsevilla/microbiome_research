@@ -268,8 +268,8 @@ dev.off()
 
 #Filter samples with less than 10000 reads: Review filtered read counts and plot
 ```{r}
+#All samples
 physeq_filt = prune_samples(sample_sums(physeq_filt) > 10000, physeq_filt)
-
 sample_sum_df<-data.frame(sum = sample_sums(physeq_filt),sample_data(physeq_filt))
 colnames(sample_sum_df)
 
@@ -279,7 +279,7 @@ p1<-ggplot(sample_sum_df, aes(x = sum, fill=Sample.Type)) +
   xlab("Sequencing Reads") +
   ylab("Number of Samples") +
   ggtitle("Distribution of Sample Sequencing Depth - Post-Filtering")
-file_name =paste(output_location,"Graphs\\Summary\\SeqDepth_postfilter.tiff",sep="")
+file_name =paste(output_location,"Graphs\\SeqDepth_postfilter.tiff",sep="")
 tiff(file_name, width=800)
 print(p1)
 dev.off()
@@ -290,7 +290,7 @@ p1<-ggplot(sample_sum_df, aes(x = sum, fill=Run.ID)) +
   xlab("Sequencing Reads") +
   ylab("Number of Samples") +
   ggtitle("Distribution of Sample Sequencing Depth - Post-Filtering")
-file_name =paste(output_location,"Graphs\\Summary\\SeqDepth_postfilter_runid.tiff",sep="")
+file_name =paste(output_location,"Graphs\\SeqDepth_postfilter_runid.tiff",sep="")
 tiff(file_name, width=800)
 print(p1)
 dev.off()
@@ -306,92 +306,145 @@ p1<-ggplot(sample_sum_df, aes(x = sum, fill=Ext.Kit)) +
   xlab("Sequencing Reads") +
   ylab("Number of Samples") +
   ggtitle("Distribution of Sample Sequencing Depth - Post-Filtering")
-file_name =paste(output_location,"Graphs\\Summary\\SeqDepth_postfilter_blanks.tiff",sep="")
+file_name =paste(output_location,"Graphs\\SeqDepth_postfilter_blanks.tiff",sep="")
 tiff(file_name, width=800)
 print(p1)
 dev.off()
 
 #Print summaries
 s<-summary(sample_data(physeq_filt))
-capture.output(s, file = paste(output_location,"Data\\Summary\\summary_postfilter.txt",sep=""))
+capture.output(s, file = paste(output_location,"Data\\summary_postfilter.txt",sep=""))
 
 s<-summary(sample_data(physeq_filt)$Sample.Type)
-capture.output(s, file = paste(output_location,"Data\\Summary\\summary_postfilter_sample.type.txt",sep=""))
+capture.output(s, file = paste(output_location,"Data\\summary_postfilter_sample.type.txt",sep=""))
 
 s<-summary(sample_data(physeq_filt)$Sample.Cat)
-capture.output(s, file = paste(output_location,"Data\\Summary\\summary_postfilter_sample.cat.txt",sep=""))
+capture.output(s, file = paste(output_location,"Data\\summary_postfilter_sample.cat.txt",sep=""))
 ```
 
 #Subset filtered data, sample to specified depth
 ```{r}
-#Only samples
-physeq_filt_seqcontrols<-physeq_filt %>%
-  subset_samples(
-    Sample.Type=="Seq.Control" 
-  )
-physeq_filt_seqcontrols #verify sample number
+# Create rarefaction curve
+rare_curves<-function(phyobject,coloroption,graphtitle){
+ p1 <- ggrare(phyobject, step = 1000, color = coloroption, se = FALSE)
+ p1 <- p1 + facet_wrap(~Sample.Type)
+ file_name =paste(output_location,"Graphs\\",graphtitle,".tiff",sep="")
+ tiff(file_name, width=800)
+ print(p1)
+ dev.off()
+}
 
-#Only controls
-physeq_filt_extcontrols<-physeq_filt %>%
-  subset_samples(
-    Sample.Type == "Ext.Blank" | Sample_Cat=="Ext.Control"
-  )
-physeq_filt_extcontrols #verify sample number
+downsample_reads<-function(phyobject){
+ temp<-phyobject %>% scale_reads(n=sample_depth)
+ return(temp)
+}
 
-#Only replicates
-physeq_filt_study<-physeq_filt %>%
-  subset_samples(
-    Sample.Type == "Study" 
-  )
-physeq_filt_study #verify sample number
+filt_controls<-function(phyobject,filteroption,filterselection){
+ temp<-subset_samples(phyobject, filteroption %in% filterselection)
+ return(temp)
+}
 
-# Scale reads to even depth 
-p1 <- ggrare(physeq_filt, step = 1000, color = "Sample.Type", se = FALSE)
-p1 <- p1 + facet_wrap(~Sample.Type)
-file_name =paste(output_location,"Graphs\\Summary\\Rarecurve_PreFiltering.tiff",sep="")
-tiff(file_name, width=800)
-print(p1)
-dev.off()
- 
-physeq_scale<-physeq_filt %>% scale_reads(n=sample_depth) 
-physeq_filt_seqcontrols<-physeq_filt_seqcontrols %>% scale_reads(n=sample_depth) 
-physeq_filt_extcontrols<-physeq_filt_extcontrols %>% scale_reads(n=sample_depth) 
-physeq_filt_study<-physeq_filt_study %>% scale_reads(n=sample_depth) 
+#Scaling
+rare_curves(physeq_filt,"Run.ID","Rarecurve_PreFiltering")
 
-p1 <- ggrare(physeq_scale, step = 1000, color = "Sample.Type", se = FALSE)
-p1 <- p1 + facet_wrap(~Sample.Type)
-file_name =paste(output_location,"Graphs\\Summary\\Rarecurve_PostFiltering.tiff",sep="")
-tiff(file_name, width=800)
-print(p1)
-dev.off()
+physeq_scale<-downsample_reads(physeq_filt)
+rare_curves(physeq_scale,"Run.ID","Rarecurve_PostFiltering")
+
+#Sample specific
+controls<-"Seq.Control"
+#controls<-c("Ext.Control","Ext.Blank")
+#controls<-"Replicate"
+physeq_control<-subset_samples(physeq_scale, Sample.Type %in% controls)
+rare_curves(physeq_control,"Run.ID","Rarecurve_PostFiltering_SeqControls")
 ```
 
 #Alpha Diversity - All samples, Run ID
 ```{r}
-# Scale reads to even depth 
-physeq_scale<-physeq_filt %>%
-  scale_reads(n=1000) 
+plot_diversity<-function(phyobject,filter){
+ p<-plot_richness(phyobject, x=filter) + geom_boxplot()
+ file_name =paste(output_location,"Graphs\\alphadiv_",filter,".tiff",sep="")
+ tiff(file_name, width=800)
+ print(p)
+ dev.off()
+} 
 
-#Sample Type
-p<-plot_richness(physeq_scale, x="Sample.Type") + geom_boxplot()
-file_name =paste(output_location,"Graphs\\Summary\\alphadiv_sampletype.tiff",sep="")
-tiff(file_name, width=800)
-print(p)
-dev.off()
+#Plots
+#alpha_plots<-c("Sample.Type","Run.ID","Ext.Kit")
+alpha_plots<-c("Source.Descrip","Run.ID")
 
-#Sequencing Batch
-p<-plot_richness(physeq_scale, x="Run.ID") + geom_boxplot()
-file_name =paste(output_location,"Graphs\\Summary\\alphadiv_sequencingbatch.tiff",sep="")
-tiff(file_name, width=800)
-print(p)
-dev.off()
+for (a in alpha_plots){
+ plot_diversity(physeq_scale,a)
+}
+```
 
-#Extraction Kit
-p<-plot_richness(physeq_scale, x="Ext.Kit") + geom_boxplot()
-file_name =paste(output_location,"Graphs\\Summary\\alphadiv_extractionkit.tiff",sep="")
-tiff(file_name, width=800)
-print(p)
-dev.off()
+#Determine significance
+```{r}
+sig_values<-function(phyloobject,testname,filtercat,filtlist){
+ results = estimate_richness(phyloobject, measures = testname)
+
+ d = sample_data(phyloobject)
+ 
+ # calculate t-test
+ #Resource: https://www.investopedia.com/terms/t/t-test.asp
+ samp1 = results[d[,filtercat] == filtlist[1],]
+ samp2 = results[d[,filtercat] == filtlist[2],]
+
+ #Check normality
+ #Resource: http://www.sthda.com/english/wiki/normality-test-in-r
+ test1<-shapiro.test(samp1)
+ test2<-shapiro.test(samp2)
+ 
+ cat ("*********************************",sep="\n")
+ cat ("Results for the", testname, "test")
+ cat("",sep="\n")
+ cat ("*********************************",sep="\n")
+
+ 
+ if(test1$p.value<.05 || test1$p.value<0.5){
+  print ("********* Results: Pairing does not pass normality (p value <0.05)")
+  print(test1)
+  print(test2)
+ } else {
+  print ("********* Results: Pairing passes normality (p value >0.05")
+  
+  #Check Variance
+  #Resource: http://www.sthda.com/english/wiki/f-test-compare-two-variances-in-r
+  test1<-var.test(samp1,samp2)
+  
+  if(test1$p.value<0.05){
+   print ("********* Results: Paring does not pass variance test (p value <0.05; unequal variance will be used in t-test")
+   print(var.test(samp1,samp2))
+   
+   test1<-t.test(samp1, samp2,var.equal = FALSE)
+   
+  } else{
+   print ("********* Results: Paring does pass the variance test (p value >0.05")
+   test1<-t.test(samp1, samp2)
+  }
+  
+  #Print result meaning
+  if(test1$p.value<0.05){
+   cat ("********* Results: The results from the",testname,"are significant")
+  } else{
+   cat ("********* Results: The results from the",testname,"are NOT significant")
+  }
+  print(test1)
+ }
+}
+
+#Run test
+sig_paring<-c("MSA1000","MSA1001")
+test_list<-c('Shannon')
+
+for (a in test_list){
+ sig_values(physeq_scale,test_list,"Source.Descrip",sig_paring)
+
+ }
+shapiro.test(x)
+
+
+
+
 ```
 
 #Save data tables for downstream use - Genus
