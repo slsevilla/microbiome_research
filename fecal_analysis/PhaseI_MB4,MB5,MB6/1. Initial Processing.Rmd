@@ -8,10 +8,10 @@ editor_options:
 #To Update
 ```{r}
 parent_dir = c("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\")
-project_name=c("Project_NP0084_MB4\\Stochastic_Run3")
+project_name=c("Project_NP0084_MB4\\Stochastic_Run1")
 manifest_name=c("NP0084-MB4_08_29_19_metadata_seq.txt")
 
-output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\R_Run3\\")
+output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\R_Run1\\")
 
 sample_depth=100000
 reference_db="greengenes"
@@ -47,7 +47,7 @@ library(ggplot2)
 #Directory Creation
 ```{r}
 #Create directories
-dir_create<-c("Data","Data\\Summary","Data\\Baseline","OTUs","Taxa","Graphs","Graphs\\Summary","Graphs\\Baseline")
+dir_create<-c("Data","OTUs","Taxa","Graphs")
 
 for(a in dir_create){
  dir.create(paste(output_location,a,sep=""))
@@ -146,12 +146,13 @@ if(phylo_number>1){
 
 ```
 
-#Create merges of OTU, Tax for final phylo object
+#Create merges of OTU, Tax for final phylo object - only for projects > 1
 ```{r}
 otu_final<-as.data.frame(otu_table(physeq_complete1))
 
 count=2
 if(phylo_number>1){
+ if(phylo_number>1){
  otu_name<-paste("otu",count,sep="")
  phy_name<-paste("physeq_complete",count,sep="")
  assign(otu_name,as.data.frame(otu_table(get(phy_name))))
@@ -162,39 +163,44 @@ if(phylo_number>1){
   }
  }
  count=count+1
-}
-
-otu<-otu_table(otu1,taxa_are_rows = TRUE)
-
-
-#Create taxa tables by flowcell (pulled from created filtered phyloseq objects)
-tax_final<-as.data.frame(tax_table(physeq_complete1))
-
-count=2
-if(phylo_number>1){
- tax_name<-paste("tax",count,sep="")
- phy_name<-paste("physeq_complete",count,sep="")
- assign(tax_name,as.data.frame(tax_table(get(phy_name))))
- 
- for (a in colnames(get(tax_name))){
-  for (b in rownames(get(tax_name))){
-   tax_final[b,a]<-get(tax_name)[b,a]
-  }
  }
- count=count+1
+ 
+ otu<-otu_table(otu1,taxa_are_rows = TRUE)
+ 
+ 
+ #Create taxa tables by flowcell (pulled from created filtered phyloseq objects)
+ tax_final<-as.data.frame(tax_table(physeq_complete1))
+ 
+ count=2
+ if(phylo_number>1){
+  tax_name<-paste("tax",count,sep="")
+  phy_name<-paste("physeq_complete",count,sep="")
+  assign(tax_name,as.data.frame(tax_table(get(phy_name))))
+  
+  for (a in colnames(get(tax_name))){
+   for (b in rownames(get(tax_name))){
+    tax_final[b,a]<-get(tax_name)[b,a]
+   }
+  }
+  count=count+1
+ }
+ 
+ tax<-as.matrix(tax_final) #Convert to matrix - str that phyloseq requires
+ tax<-tax_table(tax)
+ 
+ #Merge final object
+ physeq_complete<-phyloseq(otu,tax,sampledata1) #merged phylo object
+ random_tree = rtree(ntaxa(physeq_complete1), rooted=TRUE, tip.label=taxa_names(physeq_complete1))
+ physeq_complete<-phyloseq(otu,tax,sampledata1,random_tree) #merged phylo object
+
+} else{
+ physeq_complete<-physeq_complete1
+ otu<-otu_table(physeq_complete,taxa_are_rows = TRUE)
 }
-
-tax<-as.matrix(tax_final) #Convert to matrix - str that phyloseq requires
-tax<-tax_table(tax)
-
-#Merge final object
-physeq_complete<-phyloseq(otu,tax,sampledata1) #merged phylo object
-random_tree = rtree(ntaxa(physeq_complete1), rooted=TRUE, tip.label=taxa_names(physeq_complete1))
-physeq_complete<-phyloseq(otu,tax,sampledata1,random_tree) #merged phylo object
 
 #Output
 s<-summary(sample_data(physeq_complete))
-capture.output(s, file = paste(output_location,"Data\\Summary\\summary_prefilter.txt",sep=""))
+capture.output(s, file = paste(output_location,"Data\\summary_prefilter.txt",sep=""))
 write.csv(otu, file = paste(output_location,"OTUs\\otu_table.csv",sep=""))
 
 ```
@@ -211,9 +217,9 @@ physeq_filt<-physeq_complete %>%
 
 #Print summaries
 s<-summary(sample_data(physeq_filt)$Sample.Type)
-capture.output(s, file = paste(output_location,"Data\\Summary\\summary_prefilter_sample.type.txt",sep=""))
+capture.output(s, file = paste(output_location,"Data\\summary_prefilter_sample.type.txt",sep=""))
 s<-summary(sample_data(physeq_filt)$Sample.Cat)
-capture.output(s, file = paste(output_location,"Data\\Summary\\summary_prefilter_sample.cat.txt",sep=""))
+capture.output(s, file = paste(output_location,"Data\\summary_prefilter_sample.cat.txt",sep=""))
 ```
 
 #Filter taxa >.001 ; Determine read counts and plot
@@ -233,7 +239,7 @@ p1<-ggplot(sample_sum_df, aes(x = sum, fill=Sample.Type)) +
   ggtitle("Distribution of Sample Sequencing Depth - Pre-Filtering")
 
 #Save file
-file_name =paste(output_location,"Graphs\\Summary\\SeqDepth_prefilter.tiff",sep="")
+file_name =paste(output_location,"Graphs\\SeqDepth_prefilter.tiff",sep="")
 tiff(file_name, width=800)
 print(p1)
 dev.off()
@@ -241,24 +247,26 @@ dev.off()
 #Read counts of blanks only
 physeq_filt_blanks <- physeq_filt %>%
   subset_samples(
-    Source.Descrip == "Water" 
+    Source.Descrip == "Water" || Source.Descrip=="PCR.Blank" || Source.Descrip=="NTC.Blank"
   )
 # Make a data frame with a column for the read counts of each sample
 sample_sum_df<-data.frame(sum = sample_sums(physeq_filt_blanks),sample_data(physeq_filt_blanks))
 colnames(sample_sum_df)
-
-# Histogram of sample read counts by sampletype
+ 
+ # Histogram of sample read counts by sampletype
 p1<-ggplot(sample_sum_df, aes(x = sum, fill=Ext.Kit)) + 
   geom_histogram(binwidth = 2500) +
-  xlab("Sequencing Reads") +
-  ylab("Number of Samples") +
-  ggtitle("Distribution of Sample Sequencing Depth - Pre-Filtering")
-
-#Save file
-file_name =paste(output_location,"Graphs\\Summary\\SeqDepth_prefilter_blanks.tiff",sep="")
+   xlab("Sequencing Reads") +
+   ylab("Number of Samples") +
+   ggtitle("Distribution of Sample Sequencing Depth - Pre-Filtering")
+ 
+ #Save file
+file_name =paste(output_location,"Graphs\\SeqDepth_prefilter_blanks.tiff",sep="")
 tiff(file_name, width=800)
 print(p1)
 dev.off()
+
+
 ```
 
 #Filter samples with less than 10000 reads: Review filtered read counts and plot
