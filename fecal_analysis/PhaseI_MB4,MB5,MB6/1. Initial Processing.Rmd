@@ -377,7 +377,7 @@ for (a in alpha_plots){
 }
 ```
 
-#Determine significance
+#Determine significance - TTests
 ```{r}
 sig_values<-function(phyloobject,testname,filtercat,filtlist){
  results = estimate_richness(phyloobject, measures = testname)
@@ -395,7 +395,9 @@ sig_values<-function(phyloobject,testname,filtercat,filtlist){
  test2<-shapiro.test(samp2)
  
  cat ("*********************************",sep="\n")
- cat ("Results for the", testname, "test")
+ cat ("Results for the", testname, "test with the following variables:")
+ cat("",sep="\n")
+ cat(filtlist[1], "and",filtlist[2])
  cat("",sep="\n")
  cat ("*********************************",sep="\n")
 
@@ -404,6 +406,7 @@ sig_values<-function(phyloobject,testname,filtercat,filtlist){
   print ("********* Results: Pairing does not pass normality (p value <0.05)")
   print(test1)
   print(test2)
+  qqplot(samp1,samp2)
  } else {
   print ("********* Results: Pairing passes normality (p value >0.05")
   
@@ -412,40 +415,54 @@ sig_values<-function(phyloobject,testname,filtercat,filtlist){
   test1<-var.test(samp1,samp2)
   
   if(test1$p.value<0.05){
-   print ("********* Results: Paring does not pass variance test (p value <0.05; unequal variance will be used in t-test")
+   print ("********* Results: Paring does not pass variance test (p value <0.05; considered in t-test")
    print(var.test(samp1,samp2))
    
    test1<-t.test(samp1, samp2,var.equal = FALSE)
    
   } else{
-   print ("********* Results: Paring does pass the variance test (p value >0.05")
+   print ("********* Results: Paring passes the variance test (p value >0.05")
    test1<-t.test(samp1, samp2)
   }
   
   #Print result meaning
   if(test1$p.value<0.05){
-   cat ("********* Results: The results from the",testname,"are significant")
+   print ("********* Results: The results from are significant")
   } else{
-   cat ("********* Results: The results from the",testname,"are NOT significant")
+   print ("********* Results: The results from are NOT significant")
   }
   print(test1)
  }
 }
 
 #Run test
-sig_paring<-c("MSA1000","MSA1001")
 test_list<-c('Shannon')
+sub_type<-c("Source.Descrip")
+sig_options<-c("MSA1000","MSA1001","MSA1002","MSA1003")
+
+#matrix will include repeats - need to delete them based on the number of variables
+#del_list<-c(3,5,6) #For 3 variables
+del_list<-c(4,7,8,10,11,12) #for 4 variables
 
 for (a in test_list){
- sig_values(physeq_scale,test_list,"Source.Descrip",sig_paring)
-
+ 
+ #Create matrix of options
+ sig_matrix<-permutations(n=length(sig_options),r=2,v=sig_options)
+ rownames(sig_matrix)<-c(1:nrow(sig_matrix))
+ 
+ #Clean matrix
+ sig_matrix<-sig_matrix[!rownames(sig_matrix) %in% del_list, ]
+ 
+ for (i in 1:choose(n=length(sig_options),k=2)){ #calculates the number of permutations without repeating
+  sig_paring<-c(sig_matrix[i,1],sig_matrix[i,2])
+  
+  sig_values(physeq_scale,test_list,sub_type,sig_paring)
  }
-shapiro.test(x)
-
-
-
-
+}
 ```
+
+#
+
 
 #Save data tables for downstream use - Genus
 ```{r}
