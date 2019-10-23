@@ -245,17 +245,16 @@ print(p1)
 dev.off()
 
 #Read counts of blanks only
-physeq_filt_blanks <- physeq_filt %>%
-  subset_samples(
-    Source.Descrip == "Water" || Source.Descrip=="PCR.Blank" || Source.Descrip=="NTC.Blank"
-  )
+blank_types<-c("Water","PCR.Blank","NTC.Blank")
+physeq_filt_blanks <- subset_samples(physeq_filt, Source.Descrip %in% blank_types)
+    
 # Make a data frame with a column for the read counts of each sample
 sample_sum_df<-data.frame(sum = sample_sums(physeq_filt_blanks),sample_data(physeq_filt_blanks))
 colnames(sample_sum_df)
  
  # Histogram of sample read counts by sampletype
-p1<-ggplot(sample_sum_df, aes(x = sum, fill=Ext.Kit)) + 
-  geom_histogram(binwidth = 2500) +
+p1<-ggplot(sample_sum_df, aes(x = sum, fill=Run.ID)) + 
+  geom_histogram(binwidth = 50) +
    xlab("Sequencing Reads") +
    ylab("Number of Samples") +
    ggtitle("Distribution of Sample Sequencing Depth - Pre-Filtering")
@@ -265,8 +264,6 @@ file_name =paste(output_location,"Graphs\\SeqDepth_prefilter_blanks.tiff",sep=""
 tiff(file_name, width=800)
 print(p1)
 dev.off()
-
-
 ```
 
 #Filter samples with less than 10000 reads: Review filtered read counts and plot
