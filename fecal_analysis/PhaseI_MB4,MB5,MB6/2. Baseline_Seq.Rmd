@@ -126,6 +126,7 @@ tp_fp_fn_samplelevel<- function(db,tl,ct){
   }
   
   temp[a,"ControlType"]<-ct
+  temp[a,"Expected"]<-length(exp_taxa_list)
   temp[a,paste("TP",db,tl,sep="_")]<-tp
   temp[a,paste("FP",db,tl,sep="_")]<-fp
   temp[a,paste("FN",db,tl,sep="_")]<-fn
@@ -154,7 +155,6 @@ write.csv(temp,paste(output_location,"\\Taxa\\Taxonomy_tar_tdr.csv",sep=""))
 remove(temp)
 
 ```
-
 
 #Observed to Expected Counts
 ```{r}
