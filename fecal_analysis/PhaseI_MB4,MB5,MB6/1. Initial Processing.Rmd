@@ -340,16 +340,18 @@ filt_controls<-function(phyobject,filteroption,filterselection){
  return(temp)
 }
 
-#Scaling
+#Curve before scaling
 rare_curves(physeq_filt,"Run.ID","Rarecurve_PreFiltering")
 
+#After scaling
 physeq_scale<-downsample_reads(physeq_filt)
 rare_curves(physeq_scale,"Run.ID","Rarecurve_PostFiltering")
 
-#Sample specific
-controls<-"Seq.Control"
-#controls<-c("Ext.Control","Ext.Blank")
-#controls<-"Replicate"
+#Sample Type Specific - Controls
+unique(sample_data(physeq_scale)$Sample.Type)
+
+controls<-c("Seq.Control")
+controls<-c("Ext.Control")
 physeq_control<-subset_samples(physeq_scale, Sample.Type %in% controls)
 rare_curves(physeq_control,"Run.ID","Rarecurve_PostFiltering_SeqControls")
 ```
