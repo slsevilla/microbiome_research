@@ -79,6 +79,15 @@ for(a in taxa_levels){
 }
 ```
 
+#Load phylo object
+```{r}
+#NOTE: must run 1. Initial processing
+#physeq_scale include all samples
+
+subset_list<-c("Seq.Control")
+physeq_seq<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+```
+
 #OTU Counts by sample
 Determine total OTUs
 ```{r}
@@ -161,7 +170,6 @@ tar_tdr_av<-aggregate(tar_tdr[, 8], list(tar_tdr$ControlType), mean)
 colnames(tar_tdr_av)<-c("Control.Type","F1Score")
 
 write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_tdr_av.csv",sep=""))
-
 ```
 
 #Relative Abundance  - Seq Controls
