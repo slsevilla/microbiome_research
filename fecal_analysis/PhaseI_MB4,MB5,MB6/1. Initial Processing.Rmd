@@ -265,7 +265,7 @@ colnames(sample_sum_df)
  
  # Histogram of sample read counts by sampletype
 p1<-ggplot(sample_sum_df, aes(x = sum, fill=Run.ID)) + 
-  geom_histogram(binwidth = 50) +
+  geom_histogram(binwidth = 800) +
    xlab("Sequencing Reads") +
    ylab("Number of Samples") +
    ggtitle("Distribution of Sample Sequencing Depth - Pre-Filtering")
@@ -279,48 +279,33 @@ dev.off()
 
 #Filter samples with less than 10000 reads: Review filtered read counts and plot
 ```{r}
+plot_reads<-function(sum_table,filtcat){
+ # Histogram of sample read counts by sample type
+ p1<-ggplot(sample_sum_df, aes(x = sum, fill=get(filtcat))) + 
+   geom_histogram(binwidth = 2500) +
+   xlab("Sequencing Reads") +
+   ylab("Number of Samples") +
+   ggtitle("Distribution of Sample Sequencing Depth - Post-Filtering")
+ file_name =paste(output_location,"Graphs\\SeqDepth_postfilter_",filtcat,".tiff",sep="")
+ tiff(file_name, width=800)
+ print(p1)
+ dev.off()
+}
+
 #All samples
 physeq_filt = prune_samples(sample_sums(physeq_filt) > 10000, physeq_filt)
 sample_sum_df<-data.frame(sum = sample_sums(physeq_filt),sample_data(physeq_filt))
 colnames(sample_sum_df)
 
-# Histogram of sample read counts by sample type
-p1<-ggplot(sample_sum_df, aes(x = sum, fill=Sample.Type)) + 
-  geom_histogram(binwidth = 2500) +
-  xlab("Sequencing Reads") +
-  ylab("Number of Samples") +
-  ggtitle("Distribution of Sample Sequencing Depth - Post-Filtering")
-file_name =paste(output_location,"Graphs\\SeqDepth_postfilter.tiff",sep="")
-tiff(file_name, width=800)
-print(p1)
-dev.off()
-
-# Histogram of sample read counts by Run id - explain two clusters
-p1<-ggplot(sample_sum_df, aes(x = sum, fill=Run.ID)) + 
-  geom_histogram(binwidth = 2500) +
-  xlab("Sequencing Reads") +
-  ylab("Number of Samples") +
-  ggtitle("Distribution of Sample Sequencing Depth - Post-Filtering")
-file_name =paste(output_location,"Graphs\\SeqDepth_postfilter_runid.tiff",sep="")
-tiff(file_name, width=800)
-print(p1)
-dev.off()
+plot_reads(sample_sum_df,"Sample.Type")
+plot_reads(sample_sum_df,"Run.ID") # Histogram of sample read counts by Run id - explain two clusters
 
 # Repeat for blanks only
 physeq_filt_blanks = prune_samples(sample_sums(physeq_filt_blanks) > 10000, physeq_filt_blanks)
 sample_sum_df<-data.frame(sum = sample_sums(physeq_filt_blanks),sample_data(physeq_filt_blanks))
 colnames(sample_sum_df)
 
-# Histogram of sample read counts by ext kit
-p1<-ggplot(sample_sum_df, aes(x = sum, fill=Ext.Kit)) + 
-  geom_histogram(binwidth = 2500) +
-  xlab("Sequencing Reads") +
-  ylab("Number of Samples") +
-  ggtitle("Distribution of Sample Sequencing Depth - Post-Filtering")
-file_name =paste(output_location,"Graphs\\SeqDepth_postfilter_blanks.tiff",sep="")
-tiff(file_name, width=800)
-print(p1)
-dev.off()
+plot_reads(sample_sumdf,"Ext.Kit") # Histogram of sample read counts by ext kit
 
 #Print summaries
 s<-summary(sample_data(physeq_filt))
