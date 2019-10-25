@@ -7,14 +7,15 @@ editor_options:
 
 #To Update
 ```{r}
-output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\R_Run3\\")
+output_location<-c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Complete\\")
 
-taxa_level=c("Family")
+taxa_levels<-c("Genus")
+reference_db<-"greengenes"
 
-manifest_name=paste("metadata_Summary_",taxa_level,"1.csv",sep="")
-taxa_file=paste("taxa_Summary_",taxa_level,"1.csv",sep="")
+manifest_name<-paste("metadata_Summary_",taxa_levels,"_",reference_db,"_seqcontrol.csv",sep="")
+taxa_file<-paste("taxa_",taxa_levels,"_",reference_db,"_seqcontrol.csv",sep="")
 
-control_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Controls\\Taxonomy\\")
+control_location<-c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Controls\\Taxonomy\\")
 ```
 
 #Load required libraries
@@ -42,8 +43,8 @@ library(tidyverse)
 #Taxonomy Reference - Expected frequencies
 ```{r}
 #Read in controls taxonomy file, grouped by taxa
-control_expect <- read.table(paste(control_location,"Taxonomy_",taxa_level,"_2019.txt",sep=""),sep="\t",header=TRUE)
-rownames(control_expect) <- unique(control_expect[,taxa_level])
+control_expect <- read.table(paste(control_location,"Taxonomy_",taxa_levels,"_2019.txt",sep=""),sep="\t",header=TRUE)
+rownames(control_expect) <- unique(control_expect[,taxa_levels])
 ```
 
 #Load OTU and metadata tables
@@ -53,11 +54,18 @@ metadata_baseline <- read.table(paste(output_location,"Taxa\\",manifest_name,sep
 rownames(metadata_baseline)<-metadata_baseline$X
 metadata_baseline<-metadata_baseline[-1]
 
-otu_baseline_complete <- read.table(paste(output_location,"Taxa\\",taxa_file,sep=""),sep=",",header= TRUE)
-rownames(otu_baseline_complete)<-otu_baseline_complete$X
-otu_baseline_complete<-otu_baseline_complete[-1]
-
-rownames(metadata_baseline)==rownames(otu_baseline_complete) #Should be true
+for(a in taxa_levels){
+ for (b in reference_db){
+  taxa_db_name<-paste("taxa_",a,"_",b,sep="")
+  
+  temp<-read.table(paste(output_location,"Taxa\\",taxa_db_name,"_seqcontrol.csv",sep=""),sep=",",header= TRUE)
+  rownames(temp)<-temp$X
+  temp<-temp[-1]
+  
+  assign(taxa_db_name,temp)
+  remove(temp)
+ }
+}
 ```
 
 #OTU Counts by sample
@@ -65,6 +73,83 @@ Determine total OTUs
 ```{r}
 otu_baseline_complete$Total_OTUs <- rowSums(otu_baseline_complete)
 ```
+
+#Observed to Expected Counts
+```{r}
+
+for(a in reference_db){
+ for (b in taxa_levels){
+  for (c in control_type){
+   temp<-tp_fp_fn_samplelevel(a,b,c)
+  }
+ }
+}
+
+tp_fp_fn_samplelevel<- function(db,tl,ct){
+ sample_list<-intersect(rownames(get(paste("taxa",tl,db,sep="_"))),rownames(subset(metadata,Source.Descrip==ct)))
+ exp_taxa_list<-rownames(get(paste("expected_taxa",tl,sep="_"))[ get(paste("expected_taxa",tl,sep="_"))[[ct]] !='A' , ])
+ unexp_taxa_list<-setdiff(colnames(get(paste("taxa",tl,db,sep="_"))),exp_taxa_list)
+
+ for (a in sample_list){
+  fp=0
+  fn=0
+  tp=0
+  
+  taxa_db<-get(paste("taxa",tl,db,sep="_"))
+  
+  #Run through expected taxa list
+  for (b in exp_taxa_list){
+   otu_count<-taxa_db[a,b]
+
+   
+   if(is.null(otu_count) || otu_count==0 || is.na(otu_count)){
+    fn=fn+1
+
+   } else if (otu_count>0){
+    tp=tp+1
+   }
+  }
+  
+  #Run through all taxa not expected
+  for (b in unexp_taxa_list){
+   otu_count<-taxa_db[a,b]
+   
+   if(otu_count==0){
+    next;
+   } else if (otu_count>0){
+    fp=fp+1
+   }
+  }
+  
+  temp[a,"ControlType"]<-ct
+  temp[a,paste("TP",db,tl,sep="_")]<-tp
+  temp[a,paste("FP",db,tl,sep="_")]<-fp
+  temp[a,paste("FN",db,tl,sep="_")]<-fn
+  temp[a,paste("TAR",db,tl,sep="_")]<-tp/(tp+fp)
+  temp[a,paste("TDR",db,tl,sep="_")]<-tp/(tp+fn)
+ }
+ 
+ return(temp)
+}
+
+temp<-data.frame()
+
+control_type<-c("MSA1000","MSA1001","MSA1002","MSA1003","D6305","D6306","D6311")
+
+for(a in reference_db){
+ for (b in taxa_levelss){
+  for (c in control_type){
+   temp<-tp_fp_fn_samplelevel(a,b,c)
+  }
+ }
+}
+
+write.csv(temp,paste(output_location_seq,"\\Taxa\\Taxonomy_tar_tdr.csv",sep=""))
+
+remove(temp)
+
+```
+
 
 #Observed to Expected Counts
 ```{r}
@@ -131,7 +216,7 @@ for (a in source_list){
  count=0
 }
 
-write.csv(observed_baseline_seqcontrols,paste(output_location,"Data\\Baseline\\observed_baseline_",taxa_level,"_seqcontrols.csv",sep=""))
+write.csv(observed_baseline_seqcontrols,paste(output_location,"Data\\Baseline\\observed_baseline_",taxa_levels,"_seqcontrols.csv",sep=""))
 ```
 
 #Relative Abundance  - Seq Controls
