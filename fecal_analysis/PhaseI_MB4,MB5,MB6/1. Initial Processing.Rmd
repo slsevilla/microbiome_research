@@ -8,10 +8,10 @@ editor_options:
 #To Update
 ```{r}
 parent_dir = c("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\")
-project_name=c("Project_NP0084_MB4\\Stochastic_Run1")
-manifest_name=c("NP0084-MB4_08_29_19_metadata_seq.txt")
+project_name=c("Project_NP0084_MB4\\Complete_run\\MB4,MB5,MBpt6","Project_NP0084_MB4\\Complete_run\\MB6")
+manifest_name=c("NP0084-MB4_08_29_19_metadata.txt","NP0084-MB6.txt")
 
-output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\R_Run1\\")
+output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Complete\\")
 
 sample_depth=100000
 reference_db="greengenes"
@@ -95,29 +95,33 @@ count=1
 for (a in project_name){
  sample_name<-paste("samplelist1_passed_",count,sep="")
  phy_name<-paste("physeq_complete",count,sep="")
- assign(sample_name,as.list(sample_names(sample_data(get(phy_name)))))
+ assign(sample_name,as.list(sample_names(sample_data(get(phy_name))))) #create list of all samples within the phyloseq object
  
  if(count>1){ #if there are more than one dataset, merge the sample data with overlaps only
   merge_name<-paste("samplelist1_passed_",count-1,sep="")
   
-  interset<-intersect(get(sample_name),get(merge_name))
+  sample_list_intersect<-intersect(get(sample_name),get(merge_name)) #list of samples duplicated
  } else{
-  interset<-get(sample_name)
+  sample_list_intersect<-get(sample_name) #first pass, intersect is named
  }
  count=count+1
 }
 
-#Remove all samples duplicated in phylo objects >1 - do not need repeated samples
-count=1 
-for (a in interset){ #
- phy_name<-paste("physeq_complete",count,sep="")
+#Remove all samples duplicated in phylo objects >1 - from objects >1 - do not need repeated samples
+count=2
+if(phylo_number>1){
  
- if(phylo_number>1){
-  assign(phy_name,subset_samples(get(phy_name),sample_names(get(phy_name))!=a)) 
+ for(i in 2:phylo_number){
+  phy_name<-paste("physeq_complete",count,sep="")
+  
+  for (b in sample_list_intersect){
+   assign(phy_name,subset_samples(get(phy_name),sample_names(get(phy_name))!=b)) 
+   
+  }
+  count=count+1
  }
- count=count+1
 }
- 
+
 #Remove quarantined samples
 count=1
 for (a in project_name){
@@ -132,16 +136,19 @@ sampledata1<-as.data.frame(sample_data(physeq_complete1))
 
 count=2
 if(phylo_number>1){
- sample_name<-paste("sampledata",count,sep="")
- phy_name<-paste("physeq_complete",count,sep="")
- assign(sample_name,as.data.frame(sample_table(get(phy_name))))
  
- for (a in colnames(get(sample_name))){
-  for (b in rownames(get(sample_name))){
-   sampledata1[b,a]<-get(sample_name)[b,a]
+ for (i in 2:phylo_number){
+  sample_name<-paste("sampledata",count,sep="")
+  phy_name<-paste("physeq_complete",count,sep="")
+  assign(sample_name,as.data.frame(sample_data(get(phy_name))))
+  
+  for (a in colnames(get(sample_name))){
+   for (b in rownames(get(sample_name))){
+    sampledata1[b,a]<-get(sample_name)[b,a]
+   }
   }
+  count=count+1
  }
- count=count+1
 }
 
 ```
@@ -152,37 +159,41 @@ otu_final<-as.data.frame(otu_table(physeq_complete1))
 
 count=2
 if(phylo_number>1){
- if(phylo_number>1){
- otu_name<-paste("otu",count,sep="")
- phy_name<-paste("physeq_complete",count,sep="")
- assign(otu_name,as.data.frame(otu_table(get(phy_name))))
  
- for (a in colnames(get(otu_name))){
-  for (b in rownames(get(otu_name))){
-   otu_final[b,a]<-get(otu_name)[b,a]
+ for(i in 2:phylo_number){
+  otu_name<-paste("otu",count,sep="")
+  phy_name<-paste("physeq_complete",count,sep="")
+  assign(otu_name,as.data.frame(otu_table(get(phy_name))))
+  
+  for (a in colnames(get(otu_name))){
+   for (b in rownames(get(otu_name))){
+    otu_final[b,a]<-get(otu_name)[b,a]
+   }
   }
- }
+  
  count=count+1
  }
- 
- otu<-otu_table(otu1,taxa_are_rows = TRUE)
- 
- 
+
+ otu<-otu_table(otu_final,taxa_are_rows = TRUE)
+ otu[is.na(otu)] <- 0 #convert NAs to 0
+
  #Create taxa tables by flowcell (pulled from created filtered phyloseq objects)
  tax_final<-as.data.frame(tax_table(physeq_complete1))
  
  count=2
  if(phylo_number>1){
-  tax_name<-paste("tax",count,sep="")
-  phy_name<-paste("physeq_complete",count,sep="")
-  assign(tax_name,as.data.frame(tax_table(get(phy_name))))
-  
-  for (a in colnames(get(tax_name))){
-   for (b in rownames(get(tax_name))){
-    tax_final[b,a]<-get(tax_name)[b,a]
+  for (i in 2:phylo_number){
+   tax_name<-paste("tax",count,sep="")
+   phy_name<-paste("physeq_complete",count,sep="")
+   assign(tax_name,as.data.frame(tax_table(get(phy_name))))
+   
+   for (a in colnames(get(tax_name))){
+    for (b in rownames(get(tax_name))){
+     tax_final[b,a]<-get(tax_name)[b,a]
+    }
    }
+   count=count+1
   }
-  count=count+1
  }
  
  tax<-as.matrix(tax_final) #Convert to matrix - str that phyloseq requires
@@ -461,8 +472,48 @@ for (a in test_list){
 }
 ```
 
-#
+#Determine significance - ANOVA
+```{r}
+sig_mul_values<-function(phyloobject,testname,filtercat){
+ results = estimate_richness(phyloobject, measures = testname)
 
+ #create merged column
+ results<-merge(results,sample_data(physeq_scale)$Source.Descrip)
+
+ #Check normality
+ #Resource: http://www.sthda.com/english/wiki/normality-test-in-r
+ test1<-shapiro.test(results[,1])
+ 
+ cat ("*********************************",sep="\n")
+ cat ("Results for the", testname, "test")
+ cat ("",sep="\n")
+ cat ("*********************************",sep="\n")
+
+ 
+ if(test1$p.value<.05){
+  print ("********* Results: Data does not pass normality (p value <0.05)")
+  print(test1)
+  plot(lm(formula=results[,1]~results[,2],data=results))
+ } else {
+  print ("********* Results: Pairing passes normality (p value >0.05")
+  
+  # Compute the analysis of variance
+  #Resource: http://www.sthda.com/english/wiki/one-way-anova-test-in-r
+  res.aov <- aov(results[,1]~results[,2], data = results)
+  # Summary of the analysis
+  summary(res.aov)
+ }
+}
+
+#Run test
+test_list<-c('Observed','Chao1','ACE')
+sub_type<-c("Source.Descrip")
+
+for (a in test_list){
+ 
+ sig_mul_values(physeq_scale,a,sub_type)
+}
+```
 
 #Save data tables for downstream use - Genus
 ```{r}
