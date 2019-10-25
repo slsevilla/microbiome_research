@@ -43,8 +43,15 @@ library(tidyverse)
 #Taxonomy Reference - Expected frequencies
 ```{r}
 #Read in controls taxonomy file, grouped by taxa
-control_expect <- read.table(paste(control_location,"Taxonomy_",taxa_levels,"_2019.txt",sep=""),sep="\t",header=TRUE)
-rownames(control_expect) <- unique(control_expect[,taxa_levels])
+for (a in taxa_levels){
+ control_expect <- read.table(paste(control_location,"Taxonomy_",taxa_levels,"_2019.txt",sep=""),sep="\t",header=TRUE)
+ rownames(control_expect) <- unique(control_expect[,taxa_levels])
+ 
+ control_db_name<-paste("expected_taxa_",a,sep="")
+ assign(control_db_name,control_expect)
+ remove(control_expect)
+}
+
 ```
 
 #Load OTU and metadata tables
@@ -75,25 +82,18 @@ for(a in taxa_levels){
 #OTU Counts by sample
 Determine total OTUs
 ```{r}
-otu_baseline_complete$Total_OTUs <- rowSums(otu_baseline_complete)
+taxa_Genus_greengenes$Total_OTUs <- rowSums(taxa_Genus_greengenes)
+
 ```
 
 #Observed to Expected Counts
 ```{r}
-
-for(a in reference_db){
- for (b in taxa_levels){
-  for (c in control_type){
-   temp<-tp_fp_fn_samplelevel(a,b,c)
-  }
- }
-}
-
 tp_fp_fn_samplelevel<- function(db,tl,ct){
- sample_list<-intersect(rownames(get(paste("taxa",tl,db,sep="_"))),rownames(subset(metadata,Source.Descrip==ct)))
+ sample_list<-intersect(rownames(get(paste("taxa",tl,db,sep="_"))),rownames(subset(get(paste("metadata",tl,db,sep="_")),Source.Descrip==ct)))
  exp_taxa_list<-rownames(get(paste("expected_taxa",tl,sep="_"))[ get(paste("expected_taxa",tl,sep="_"))[[ct]] !='A' , ])
  unexp_taxa_list<-setdiff(colnames(get(paste("taxa",tl,db,sep="_"))),exp_taxa_list)
-
+ unexp_taxa_list<-unexp_taxa_list[-length(unexp_taxa_list)] #Remove Total_OTUs column
+ 
  for (a in sample_list){
   fp=0
   fn=0
@@ -131,6 +131,7 @@ tp_fp_fn_samplelevel<- function(db,tl,ct){
   temp[a,paste("FN",db,tl,sep="_")]<-fn
   temp[a,paste("TAR",db,tl,sep="_")]<-tp/(tp+fp)
   temp[a,paste("TDR",db,tl,sep="_")]<-tp/(tp+fn)
+  temp[a,paste("F1",db,tl,sep="_")]<-2*((tp/(tp+fp))*(tp/(tp+fn)))/((tp/(tp+fp))+(tp/(tp+fn)))
  }
  
  return(temp)
@@ -141,14 +142,14 @@ temp<-data.frame()
 control_type<-c("MSA1000","MSA1001","MSA1002","MSA1003","D6305","D6306","D6311")
 
 for(a in reference_db){
- for (b in taxa_levelss){
+ for (b in taxa_levels){
   for (c in control_type){
    temp<-tp_fp_fn_samplelevel(a,b,c)
   }
  }
 }
 
-write.csv(temp,paste(output_location_seq,"\\Taxa\\Taxonomy_tar_tdr.csv",sep=""))
+write.csv(temp,paste(output_location,"\\Taxa\\Taxonomy_tar_tdr.csv",sep=""))
 
 remove(temp)
 
