@@ -607,7 +607,7 @@ split_phyloobject<-function(taxa_level,physeqobject,ref_db,filename){
  write.csv(taxtab,file_name)
   
  metatab <- as.data.frame(sample_data(physeqobject))
- file_name =paste(output_location,"Taxa\\metadata_Summary_",taxa_level,"_",ref_db,"_",filename,".csv",sep="")
+ file_name =paste(output_location,"Taxa\\metadata_",taxa_level,"_",ref_db,"_",filename,".csv",sep="")
  write.csv(metatab,file_name)
 }
 
