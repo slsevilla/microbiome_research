@@ -233,6 +233,151 @@ s<-summary(sample_data(physeq_filt)$Sample.Cat)
 capture.output(s, file = paste(output_location,"Data\\summary_prefilter_sample.cat.txt",sep=""))
 ```
 
+#Determine significance - TTests
+```{r}
+sig_values<-function(phyloobject,testname,filtercat,filtlist){
+ results = estimate_richness(phyloobject, measures = testname)
+
+ d = sample_data(phyloobject)
+ 
+ # calculate t-test
+ #Resource: https://www.investopedia.com/terms/t/t-test.asp
+ samp1 = results[d[,filtercat] == filtlist[1],]
+ samp2 = results[d[,filtercat] == filtlist[2],]
+
+ #Check normality
+ #Resource: http://www.sthda.com/english/wiki/normality-test-in-r
+ test1<-shapiro.test(samp1)
+ test2<-shapiro.test(samp2)
+ 
+ cat ("*********************************",sep="\n")
+ cat ("Results for the", testname, "test with the following variables:")
+ cat("",sep="\n")
+ cat(filtlist[1], "and",filtlist[2])
+ cat("",sep="\n")
+ cat ("*********************************",sep="\n")
+
+ 
+ if(test1$p.value<.05 || test1$p.value<0.5){
+  print ("********* Results: Pairing does not pass normality (p value <0.05)")
+  print(test1)
+  print(test2)
+  qqplot(samp1,samp2)
+ } else {
+  print ("********* Results: Pairing passes normality (p value >0.05")
+  
+  #Check Variance
+  #Resource: http://www.sthda.com/english/wiki/f-test-compare-two-variances-in-r
+  test1<-var.test(samp1,samp2)
+  
+  if(test1$p.value<0.05){
+   print ("********* Results: Paring does not pass variance test (p value <0.05; considered in t-test")
+   print(var.test(samp1,samp2))
+   
+   test1<-t.test(samp1, samp2,var.equal = FALSE)
+   
+  } else{
+   print ("********* Results: Paring passes the variance test (p value >0.05")
+   test1<-t.test(samp1, samp2)
+  }
+  
+  #Print result meaning
+  if(test1$p.value<0.05){
+   print ("********* Results: The results from are significant")
+  } else{
+   print ("********* Results: The results from are NOT significant")
+  }
+  print(test1)
+ }
+}
+
+#Run test
+test_list<-c('Shannon')
+sub_type<-c("Source.Descrip")
+sig_options<-c("MSA1000","MSA1001","MSA1002","MSA1003")
+
+#matrix will include repeats - need to delete them based on the number of variables
+#del_list<-c(3,5,6) #For 3 variables
+del_list<-c(4,7,8,10,11,12) #for 4 variables
+
+for (a in test_list){
+ 
+ #Create matrix of options
+ sig_matrix<-permutations(n=length(sig_options),r=2,v=sig_options)
+ rownames(sig_matrix)<-c(1:nrow(sig_matrix))
+ 
+ #Clean matrix
+ sig_matrix<-sig_matrix[!rownames(sig_matrix) %in% del_list, ]
+ 
+ for (i in 1:choose(n=length(sig_options),k=2)){ #calculates the number of permutations without repeating
+  sig_paring<-c(sig_matrix[i,1],sig_matrix[i,2])
+  
+  sig_values(physeq_scale,test_list,sub_type,sig_paring)
+ }
+}
+```
+
+#Determine significance - ANOVA
+```{r}
+sig_mul_values<-function(phyloobject,testname,filtercat){
+ results = estimate_richness(phyloobject, measures = testname)
+
+ #create merged column
+ temp<-sample_data(phyloobject)
+ results<-cbind(results,temp[,filtercat])
+ 
+ #Check normality
+ #Resource: http://www.sthda.com/english/wiki/normality-test-in-r
+ test1<-shapiro.test(results[,1])
+ 
+ cat ("*********************************",sep="\n")
+ cat ("Results for the", testname, "test")
+ cat ("",sep="\n")
+ cat ("*********************************",sep="\n")
+
+ 
+ if(test1$p.value<.05){
+  print ("********* Results: Data does not pass normality (p value <0.05)")
+  print(test1)
+  plot(lm(formula=results[,1]~results[,2],data=results))
+
+ } else {
+  print ("********* Results: Pairing passes normality (p value >0.05")
+  
+  # Compute the analysis of variance
+  #Resource: http://www.sthda.com/english/wiki/one-way-anova-test-in-r
+  res.aov <- aov(results[,1]~results[,2], data = results)
+  # Summary of the analysis
+  summary(res.aov)
+ }
+}
+
+#Run test
+#test_list<-c("Observed","Chao1","ACE","Shannon","Simpson","Fisher")
+test_list<-c("Chao1")
+sub_type<-c("Run.ID")
+#sub_type<-sub_type[c(2,6,8,9,10,12,13,14,15,16)]
+
+#Subfilter, as necessary
+colnames(sample_data(physeq_filt))
+unique(sample_data(physeq_filt)$Sample.Type)
+
+subset_list<-c("Study")
+physeq_scale_sub<-subset_samples(physeq_filt, Sample.Type %in% subset_list)
+
+subset_list<-c("sFEMB-001-R-011","sFEMB-001-R-041","sFEMB-001-R-038","sFEMB-001-R-037","sFEMB-001-R-039","sFEMB-001-R-042","sFEMB-001-R-009")
+subset_list<-c("sFEMB-001-R-038","sFEMB-001-R-037")
+physeq_scale_sub<-subset_samples(physeq_filt, Reciept %in% subset_list)
+physeq_scale_sub
+
+
+for (a in test_list){
+ for (b in sub_type){
+  sig_mul_values(physeq_scale_sub,a,b)
+ }
+}
+```
+
 #Filter taxa >.001 ; Determine read counts and plot
 ```{r}
 physeq_filt = filter_taxa(physeq_filt, function(x) mean(x) > 1e-2, TRUE)
@@ -350,258 +495,135 @@ rare_curves(physeq_scale,"Run.ID","Rarecurve_PostFiltering")
 #Sample Type Specific - Controls
 unique(sample_data(physeq_scale)$Sample.Type)
 
-controls<-c("Seq.Control")
-controls<-c("Ext.Control")
-physeq_control<-subset_samples(physeq_scale, Sample.Type %in% controls)
-rare_curves(physeq_control,"Run.ID","Rarecurve_PostFiltering_SeqControls")
+subset_list<-c("Seq.Control")
+subset_list<-c("Ext.Control")
+physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+rare_curves(physeq_scale_sub,"Run.ID","Rarecurve_PostFiltering_SeqControls")
 ```
 
 #Alpha Diversity - All samples, Run ID
 ```{r}
-plot_diversity<-function(phyobject,filter){
+plot_diversity<-function(phyobject,filter,subfeat){
  p<-plot_richness(phyobject, x=filter) + geom_boxplot()
- file_name =paste(output_location,"Graphs\\alphadiv_",filter,".tiff",sep="")
+ file_name =paste(output_location,"Graphs\\alphadiv_",filter,"_",subfeat,".tiff",sep="")
  tiff(file_name, width=800)
  print(p)
  dev.off()
 } 
 
-#Plots
-#alpha_plots<-c("Sample.Type","Run.ID","Ext.Kit")
-alpha_plots<-c("Source.Descrip","Run.ID")
+#Include all samples
+alpha_plots<-c("Sample.Type","Run.ID","Ext.Kit")
 
 for (a in alpha_plots){
- plot_diversity(physeq_scale,a)
+ plot_diversity(physeq_scale,a,"all")
 }
+
+#Subset for study samples only
+unique(sample_data(physeq_scale)$Sample.Type)
+
+subset_list<-c("Study")
+physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+
+for (a in alpha_plots){
+ plot_diversity(physeq_scale_sub,a,"studyonly")
+}
+
 ```
 
-#Determine significance - TTests
+#Save datatables for downstream use
 ```{r}
-sig_values<-function(phyloobject,testname,filtercat,filtlist){
- results = estimate_richness(phyloobject, measures = testname)
-
- d = sample_data(phyloobject)
+split_phyloobject<-function(taxa_level,physeqobject,ref_db){
  
- # calculate t-test
- #Resource: https://www.investopedia.com/terms/t/t-test.asp
- samp1 = results[d[,filtercat] == filtlist[1],]
- samp2 = results[d[,filtercat] == filtlist[2],]
-
- #Check normality
- #Resource: http://www.sthda.com/english/wiki/normality-test-in-r
- test1<-shapiro.test(samp1)
- test2<-shapiro.test(samp2)
- 
- cat ("*********************************",sep="\n")
- cat ("Results for the", testname, "test with the following variables:")
- cat("",sep="\n")
- cat(filtlist[1], "and",filtlist[2])
- cat("",sep="\n")
- cat ("*********************************",sep="\n")
-
- 
- if(test1$p.value<.05 || test1$p.value<0.5){
-  print ("********* Results: Pairing does not pass normality (p value <0.05)")
-  print(test1)
-  print(test2)
-  qqplot(samp1,samp2)
- } else {
-  print ("********* Results: Pairing passes normality (p value >0.05")
+ # Create a factor corresponding to the taxalevel
+ taxfac = factor(tax_table(physeqobject)[, taxa_level])
   
-  #Check Variance
-  #Resource: http://www.sthda.com/english/wiki/f-test-compare-two-variances-in-r
-  test1<-var.test(samp1,samp2)
-  
-  if(test1$p.value<0.05){
-   print ("********* Results: Paring does not pass variance test (p value <0.05; considered in t-test")
-   print(var.test(samp1,samp2))
-   
-   test1<-t.test(samp1, samp2,var.equal = FALSE)
-   
-  } else{
-   print ("********* Results: Paring passes the variance test (p value >0.05")
-   test1<-t.test(samp1, samp2)
-  }
-  
-  #Print result meaning
-  if(test1$p.value<0.05){
-   print ("********* Results: The results from are significant")
-  } else{
-   print ("********* Results: The results from are NOT significant")
-  }
-  print(test1)
- }
-}
-
-#Run test
-test_list<-c('Shannon')
-sub_type<-c("Source.Descrip")
-sig_options<-c("MSA1000","MSA1001","MSA1002","MSA1003")
-
-#matrix will include repeats - need to delete them based on the number of variables
-#del_list<-c(3,5,6) #For 3 variables
-del_list<-c(4,7,8,10,11,12) #for 4 variables
-
-for (a in test_list){
- 
- #Create matrix of options
- sig_matrix<-permutations(n=length(sig_options),r=2,v=sig_options)
- rownames(sig_matrix)<-c(1:nrow(sig_matrix))
- 
- #Clean matrix
- sig_matrix<-sig_matrix[!rownames(sig_matrix) %in% del_list, ]
- 
- for (i in 1:choose(n=length(sig_options),k=2)){ #calculates the number of permutations without repeating
-  sig_paring<-c(sig_matrix[i,1],sig_matrix[i,2])
-  
-  sig_values(physeq_scale,test_list,sub_type,sig_paring)
- }
-}
-```
-
-#Determine significance - ANOVA
-```{r}
-sig_mul_values<-function(phyloobject,testname,filtercat){
- results = estimate_richness(phyloobject, measures = testname)
-
- #create merged column
- results<-merge(results,sample_data(physeq_scale)$Source.Descrip)
-
- #Check normality
- #Resource: http://www.sthda.com/english/wiki/normality-test-in-r
- test1<-shapiro.test(results[,1])
- 
- cat ("*********************************",sep="\n")
- cat ("Results for the", testname, "test")
- cat ("",sep="\n")
- cat ("*********************************",sep="\n")
-
- 
- if(test1$p.value<.05){
-  print ("********* Results: Data does not pass normality (p value <0.05)")
-  print(test1)
-  plot(lm(formula=results[,1]~results[,2],data=results))
- } else {
-  print ("********* Results: Pairing passes normality (p value >0.05")
-  
-  # Compute the analysis of variance
-  #Resource: http://www.sthda.com/english/wiki/one-way-anova-test-in-r
-  res.aov <- aov(results[,1]~results[,2], data = results)
-  # Summary of the analysis
-  summary(res.aov)
- }
-}
-
-#Run test
-test_list<-c('Observed','Chao1','ACE')
-sub_type<-c("Source.Descrip")
-
-for (a in test_list){
- 
- sig_mul_values(physeq_scale,a,sub_type)
-}
-```
-
-#Save data tables for downstream use - Genus
-```{r}
-#phylos_obs<-list(physeq_filt_seqcontrols,physeq_filt_extcontrols,physeq_filt_study)
-phylos_obs<-list(physeq_filt_seqcontrols)
-count=1
-
-for (a in phylos_obs){
- # Create a factor corresponding to the Genera
- genfac = factor(tax_table(a)[, "Genus"])
  # Tabulate the counts for each genera in each sample
- gentab = apply(otu_table(a), MARGIN = 2, function(x) {
-    tapply(x, INDEX = genfac, FUN = sum, na.rm = TRUE, simplify = TRUE)
+ taxtab = apply(otu_table(physeqobject), MARGIN = 2, function(x) {
+  tapply(x, INDEX = taxfac, FUN = sum, na.rm = TRUE, simplify = TRUE)
  })
- gentab<-as.data.frame(gentab)
- 
- for (c in rownames(gentab)){
-  genus<-c
-  if(!grepl("g__",genus)){
-   gentab[c,"Genus"]<-"HigherGenus"
+ taxtab<-as.data.frame(taxtab)
+  
+ for (a in rownames(taxtab)){
+  taxa<-a
+  #Greengenes and silva have different taxonomic naming schemes - must address each
+  #If silva
+  if(!reference_db=="greengenes"){
+    
+   if(grepl("Unassigned",taxa)){ #Silva has unassigned tax 
+    taxtab[a,taxa_level]<-"Unassigned"
+     
+    #Genus and family levels will be named different (genus: D5, family: D4)
+    #If Genus
+   } else if(ref_db=="Genus"){
+    if(!grepl("D_5__",taxa)){ #if the name includes a D_ and number less than 5, it will be from a higher tax level
+     taxtab[a,taxa_level]<-"HigherGenus"
+    } else{
+     colname_update<-gsub("D_\\d__","",taxa) #Need to remove the formatting of taxonmy for each viewing downstream
+     taxtab[a,taxa_level]<-colname_update
+    }
+   #If not Genus
+   } else {
+    if(!grepl("D_4__",taxa)){
+     taxtab[a,taxa_level]<-"HigherFamily"
+    } else{
+     colname_update<-gsub("D_\\d__","",taxa)
+     taxtab[a,taxa_level]<-colname_update
+    }
+   }
+  #If greengenes
   } else{
-   colname_update<-str_remove(c, "g__")
-   colname_update<-gsub("[","",colname_update,fixed=TRUE) #fixed = TRUE disables regex
-   colname_update<-gsub("]","",colname_update,fixed=TRUE)
-   gentab[c,"Genus"]<-colname_update
+   
+   if(taxa_level=="Genus"){
+    if(!grepl("g__",taxa)){
+     taxtab[a,taxa_level]<-"HigherGenus"
+    } else{
+     colname_update<-str_remove(a, "g__") #Need to remove the formatting of taxonmy for each viewing downstream
+     colname_update<-gsub("[","",colname_update,fixed=TRUE) #fixed = TRUE disables regex
+     colname_update<-gsub("]","",colname_update,fixed=TRUE)
+     taxtab[a,taxa_level]<-colname_update
+    }
+   #If higher than genus
+   } else{
+    if(!grepl("f__",taxa)){
+     taxtab[a,taxa_level]<-"HigherFamily"
+    } else{
+     colname_update<-str_remove(a, "f__") #Need to remove the formatting of taxonmy for each viewing downstream
+     colname_update<-gsub("[","",colname_update,fixed=TRUE) #fixed = TRUE disables regex
+     colname_update<-gsub("]","",colname_update,fixed=TRUE)
+     taxtab[a,taxa_level]<-colname_update
+    }
+   }
   }
  }
+  
+ taxtab<-aggregate(taxtab[-ncol(taxtab)],by=list(taxtab[,taxa_level]),FUN="sum") #use -ncol since first col should not be summed
+   
+ #Check if there is a blank first column because any unassigned taxa (originally was "g__") will be blank due to above
+ if(taxtab[1,1]==""){
+  taxtab[1,1]<-"Unknown"
+ }
  
- gentab<-aggregate(gentab[-ncol(gentab)],by=list(gentab$Genus),FUN="sum") #- to remove genus column, since it's not a col to sum
- 
- if(gentab[1,1]==""){
-  gentab[1,1]<-"Unknown" #blank column (originally was "g__" for unassigned) needs to be renamed
-  }
- 
- gentab<-t(gentab) #transpose for downstream metadata matching
- colnames(gentab)<-gentab[1,]
- gentab<-gentab[-1,]
- 
- file_name =paste(output_location,"Taxa\\taxa_Summary_genus",count,".csv",sep="")
- write.csv(gentab,file_name)
- 
- metatab <- as.data.frame(sample_data(a))
- file_name =paste(output_location,"Taxa\\metadata_Summary_genus",count,".csv",sep="")
+ taxtab<-t(taxtab) #transpose for downstream metadata matching
+ colnames(taxtab)<-taxtab[1,]
+ taxtab<-taxtab[-1,]
+ colnames(taxtab) <- gsub(" ", "", colnames(taxtab)) #Remove any spaces in names
+  
+ file_name =paste(output_location,"Taxa\\taxa_",taxa_level,"_",ref_db,".csv",sep="")
+ write.csv(taxtab,file_name)
+  
+ metatab <- as.data.frame(sample_data(physeqobject))
+ file_name =paste(output_location,"Taxa\\metadata_Summary_",taxa_level,"_",ref_db,".csv",sep="")
  write.csv(metatab,file_name)
- count=count+1
 }
 
-#File ID's
-#1: Seq_controls
-#2: Ext_controls
-#3: Study
-```
+#specify taxa levels to use
+taxa_levels<-c("Genus","Family")
 
-#Save data tables for downstream use - Family
-```{r}
-#phylos_obs<-list(physeq_filt_seqcontrols,physeq_filt_extcontrols,physeq_filt_study)
-phylos_obs<-list(physeq_filt_seqcontrols)
-
-count=1
-
-for (a in phylos_obs){
- # Create a factor corresponding to the Family
- famfac = factor(tax_table(a)[, "Family"])
- # Tabulate the counts for each genera in each sample
- famtab = apply(otu_table(a), MARGIN = 2, function(x) {
-    tapply(x, INDEX = famfac, FUN = sum, na.rm = TRUE, simplify = TRUE)
- })
- famtab<-as.data.frame(famtab)
+#Run protocol
+for (a in taxa_levels){
  
- for (c in rownames(famtab)){
-  family<-c
-  if(!grepl("f__",family)){
-   famtab[c,"Family"]<-"HigherFamily"
-  } else{
-   colname_update<-str_remove(c, "f__")
-   colname_update<-gsub("[","",colname_update,fixed=TRUE) #fixed = TRUE disables regex
-   colname_update<-gsub("]","",colname_update,fixed=TRUE)
-   famtab[c,"Family"]<-colname_update
-  }
- }
- 
- if(famtab[1,1]==""){
-  famtab[1,1]<-"Unknown" #blank column (originally was "f__" for unassigned) needs to be renamed
- }
- 
- famtab<-aggregate(famtab[-ncol(famtab)],by=list(famtab$Family),FUN="sum") #- to remove genus column, since it's not a col to sum
- famtab<-t(famtab) #transpose for downstream metadata matching
- colnames(famtab)<-famtab[1,]
- famtab<-famtab[-1,]
- 
- file_name =paste(output_location,"Taxa\\taxa_Summary_family",count,".csv",sep="")
- write.csv(famtab,file_name)
- 
- metatab <- as.data.frame(sample_data(a))
- file_name =paste(output_location,"Taxa\\metadata_Summary_family",count,".csv",sep="")
- write.csv(metatab,file_name)
- count=count+1
+ split_phyloobject(a,physeq_scale,reference_db)
 }
 
-#File ID's
-#1: Seq_controls
-#2: Ext_controls
-#3: Study
+
 ```
