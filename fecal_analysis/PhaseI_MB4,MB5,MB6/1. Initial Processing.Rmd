@@ -480,11 +480,6 @@ downsample_reads<-function(phyobject){
  return(temp)
 }
 
-filt_controls<-function(phyobject,filteroption,filterselection){
- temp<-subset_samples(phyobject, filteroption %in% filterselection)
- return(temp)
-}
-
 #Curve before scaling
 rare_curves(physeq_filt,"Run.ID","Rarecurve_PreFiltering")
 
@@ -494,10 +489,10 @@ rare_curves(physeq_scale,"Run.ID","Rarecurve_PostFiltering")
 
 #Sample Type Specific - Controls
 unique(sample_data(physeq_scale)$Sample.Type)
+subset_list<-c("Seq.Control") #"Ext.Control"
 
-subset_list<-c("Seq.Control")
-subset_list<-c("Ext.Control")
 physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+
 rare_curves(physeq_scale_sub,"Run.ID","Rarecurve_PostFiltering_SeqControls")
 ```
 
@@ -532,7 +527,7 @@ for (a in alpha_plots){
 
 #Save datatables for downstream use
 ```{r}
-split_phyloobject<-function(taxa_level,physeqobject,ref_db){
+split_phyloobject<-function(taxa_level,physeqobject,ref_db,filename){
  
  # Create a factor corresponding to the taxalevel
  taxfac = factor(tax_table(physeqobject)[, taxa_level])
@@ -608,22 +603,24 @@ split_phyloobject<-function(taxa_level,physeqobject,ref_db){
  taxtab<-taxtab[-1,]
  colnames(taxtab) <- gsub(" ", "", colnames(taxtab)) #Remove any spaces in names
   
- file_name =paste(output_location,"Taxa\\taxa_",taxa_level,"_",ref_db,".csv",sep="")
+ file_name =paste(output_location,"Taxa\\taxa_",taxa_level,"_",ref_db,"_",filename,".csv",sep="")
  write.csv(taxtab,file_name)
   
  metatab <- as.data.frame(sample_data(physeqobject))
- file_name =paste(output_location,"Taxa\\metadata_Summary_",taxa_level,"_",ref_db,".csv",sep="")
+ file_name =paste(output_location,"Taxa\\metadata_Summary_",taxa_level,"_",ref_db,"_",filename,".csv",sep="")
  write.csv(metatab,file_name)
 }
 
 #specify taxa levels to use
 taxa_levels<-c("Genus","Family")
+sample_type<-c("seqcontrol") #all, seqcontrol, extcontrol, blanks, replicate
+
+subset_list<-c("Seq.Control")
+physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
 
 #Run protocol
 for (a in taxa_levels){
  
- split_phyloobject(a,physeq_scale,reference_db)
+ split_phyloobject(a,physeq_scale_sub,reference_db,sample_type)
 }
-
-
 ```
