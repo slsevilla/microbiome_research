@@ -165,18 +165,22 @@ write.csv(tar_tdr,paste(output_location,"\\Taxa\\Taxonomy_tar_tdr.csv",sep=""))
 
 #Average by Control
 ```{r}
-tar_tdr_av<-aggregate(tar_tdr[, 6], list(tar_tdr$ControlType), mean) #TAR Average
+tar_tdr_av<-aggregate(tar_tdr[, 2], list(tar_tdr$ControlType), mean) #Expected tax
 row.names(tar_tdr_av)<-tar_tdr_av$Group.1
 tar_tdr_av<-tar_tdr_av[,-1]
 
-tar_tdr_av<-cbind(tar_tdr_av,aggregate(tar_tdr[, 7], list(tar_tdr$ControlType), mean)) #TDR Average
+tar_tdr_av<-cbind(tar_tdr_av,aggregate(tar_tdr[, 6], list(tar_tdr$ControlType), mean)) #TAR Average
 row.names(tar_tdr_av)<-tar_tdr_av$Group.1
-tar_tdr_av<-tar_tdr_av[,-2]
-
-tar_tdr_av<-cbind(tar_tdr_av,aggregate(tar_tdr[, 8], list(tar_tdr$ControlType), mean)) #F1 Average
 tar_tdr_av<-tar_tdr_av[,-3]
 
-colnames(tar_tdr_av)<-c("TAR","TDR","F1Score")
+tar_tdr_av<-cbind(tar_tdr_av,aggregate(tar_tdr[, 7], list(tar_tdr$ControlType), mean)) #TDR Average
+row.names(tar_tdr_av)<-tar_tdr_av$Group.1
+tar_tdr_av<-tar_tdr_av[,-3]
+
+tar_tdr_av<-cbind(tar_tdr_av,aggregate(tar_tdr[, 8], list(tar_tdr$ControlType), mean)) #F1 Average
+tar_tdr_av<-tar_tdr_av[,-4]
+
+colnames(tar_tdr_av)<-c("Expected","TAR","TDR","F1Score")
 tar_tdr_av
 
 write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_tdr_av.csv",sep=""))
