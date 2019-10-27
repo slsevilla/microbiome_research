@@ -28,7 +28,6 @@ library(tm)
 library(vegan)
 library("biom")
 library(tidyr)
-library(ggplot2)
 library(cowplot)
 library(scales)
 library(phyloseq)
@@ -36,6 +35,7 @@ library(qiime2R)
 library(tibble)
 library(gridExtra)
 library(tidyverse)
+library(grid)
 ```
 
 #Analysis
@@ -85,7 +85,7 @@ for(a in taxa_levels){
 #physeq_scale include all samples
 
 subset_list<-c("Seq.Control")
-physeq_seq<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
 ```
 
 #OTU Counts by sample
@@ -165,9 +165,19 @@ write.csv(tar_tdr,paste(output_location,"\\Taxa\\Taxonomy_tar_tdr.csv",sep=""))
 
 #Average by Control
 ```{r}
-colnames(tar_tdr)
-tar_tdr_av<-aggregate(tar_tdr[, 8], list(tar_tdr$ControlType), mean)
-colnames(tar_tdr_av)<-c("Control.Type","F1Score")
+tar_tdr_av<-aggregate(tar_tdr[, 6], list(tar_tdr$ControlType), mean) #TAR Average
+row.names(tar_tdr_av)<-tar_tdr_av$Group.1
+tar_tdr_av<-tar_tdr_av[,-1]
+
+tar_tdr_av<-cbind(tar_tdr_av,aggregate(tar_tdr[, 7], list(tar_tdr$ControlType), mean)) #TDR Average
+row.names(tar_tdr_av)<-tar_tdr_av$Group.1
+tar_tdr_av<-tar_tdr_av[,-2]
+
+tar_tdr_av<-cbind(tar_tdr_av,aggregate(tar_tdr[, 8], list(tar_tdr$ControlType), mean)) #F1 Average
+tar_tdr_av<-tar_tdr_av[,-3]
+
+colnames(tar_tdr_av)<-c("TAR","TDR","F1Score")
+tar_tdr_av
 
 write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_tdr_av.csv",sep=""))
 ```
@@ -202,9 +212,28 @@ relabun_baseline_seqcontrols[relabun_baseline_seqcontrols=="A"]=0 #replace A's w
 write.csv(relabun_baseline_seqcontrols,paste(output_location,"Data\\Baseline\\relabun_baseline_seqcontrols.csv",sep=""))
 ```
 
-#6 Plot graph - IntraControl Variability
+#Plot graph - IntraControl Variability
 For each kit, show variability, and map
 ```{r}
-ordu = ordinate(physeq_filt_seqcontrols, "PCoA", "unifrac", weighted=TRUE)
-plot_ordination(physeq_filt_seqcontrols, ordu, color="Source.Descrip")
+#Plot type can be: c("DCA", "CCA", "RDA", "CAP", "DPCoA", "NMDS", "MDS", "PCoA")
+#dist_meas can be: "unifrac", "wunifrac", "dpcoa", "jsd", "bray"
+
+plot_controls<-function(type,dist_meas){
+ ordu = ordinate(physeq_scale_sub, type, dist_meas, weighted=TRUE)
+ p1<-plot_ordination(physeq_scale_sub, ordu, color="Source.Descrip",title=paste(type," of Seq Controls",sep=""))
+ 
+ allGroupsColors<- c("grey0", "grey50", "deepskyblue","red", "darkred", "orange", "purple")
+ p1<-p1 + geom_point(size = 4) + scale_color_manual(values = allGroupsColors)
+
+
+ tiff(paste(output_location,"\\Graphs\\",type,"_seqcontrols.tiff",sep=""),compression="lzw")
+ grid.draw(p1)
+ dev.off()
+ 
+}
+
+plot_controls("NMDS","bray")
+plot_controls("PCoA","unifrac")
+
+
 ```
