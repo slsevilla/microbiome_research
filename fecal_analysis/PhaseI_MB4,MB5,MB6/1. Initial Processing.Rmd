@@ -531,12 +531,13 @@ plot_beta<-function(phyobj,type,dist_meas,colby){
  ordu = ordinate(phyobj, type, dist_meas, weighted=TRUE)
  p1<-plot_ordination(phyobj, ordu, color=colby,title=paste("Beta Div (", type,") by ", colby,sep=""))
  
- allGroupsColors<- c("grey50")
+ allGroupsColors<- c("grey0")
  allGroupsColors<-append(allGroupsColors,brewer.pal(n = 9, name = "Set1"))
+ allGroupsColors<-append(allGroupsColors,brewer.pal(n = 12, name = "Paired"))
+
  p1<-p1 + geom_point(size = 4) + scale_color_manual(values = allGroupsColors)
- p1
- 
- tiff(paste(output_location,"\\Graphs\\betadiv_",type,".tiff",sep=""),compression="lzw")
+
+ tiff(paste(output_location,"\\Graphs\\betadiv_",type,"_",colby,".tiff",sep=""))
  grid.draw(p1)
  dev.off()
  
