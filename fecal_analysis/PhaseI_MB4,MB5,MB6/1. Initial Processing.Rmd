@@ -525,6 +525,30 @@ for (a in alpha_plots){
 
 ```
 
+#Beta diversity
+```{r}
+plot_beta<-function(phyobj,type,dist_meas,colby){
+ ordu = ordinate(phyobj, type, dist_meas, weighted=TRUE)
+ p1<-plot_ordination(phyobj, ordu, color=colby,title=paste("Beta Div (", type,") by ", colby,sep=""))
+ 
+ allGroupsColors<- c("grey50")
+ allGroupsColors<-append(allGroupsColors,brewer.pal(n = 12, name = "Set1"))
+ p1<-p1 + geom_point(size = 4) + scale_color_manual(values = allGroupsColors)
+ p1
+ 
+ tiff(paste(output_location,"\\Graphs\\betadiv_",type,".tiff",sep=""),compression="lzw")
+ grid.draw(p1)
+ dev.off()
+ 
+}
+
+plot_beta(physeq_scale,"PCoA","unifrac","Sample.Type")
+plot_beta(physeq_scale,"PCoA","unifrac","Ext.Kit")
+#plot_beta(physeq_scale,"NMDS","bray","Sample.Type")
+
+
+```
+
 #Save datatables for downstream use
 ```{r}
 split_phyloobject<-function(taxa_level,physeqobject,ref_db,filename){
