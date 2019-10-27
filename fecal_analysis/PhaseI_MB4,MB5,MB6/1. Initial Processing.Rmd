@@ -532,7 +532,7 @@ plot_beta<-function(phyobj,type,dist_meas,colby){
  p1<-plot_ordination(phyobj, ordu, color=colby,title=paste("Beta Div (", type,") by ", colby,sep=""))
  
  allGroupsColors<- c("grey50")
- allGroupsColors<-append(allGroupsColors,brewer.pal(n = 12, name = "Set1"))
+ allGroupsColors<-append(allGroupsColors,brewer.pal(n = 9, name = "Set1"))
  p1<-p1 + geom_point(size = 4) + scale_color_manual(values = allGroupsColors)
  p1
  
