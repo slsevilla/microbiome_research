@@ -188,32 +188,100 @@ write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_tdr_av.csv",sep
 
 #Relative Abundance  - Seq Controls
 ```{r}
-relabun_baseline_seqcontrols<-data.frame()
+relabun_seqcont<-data.frame()
 
 #Complete Relative Abundance
-samplelist_seqcontrols<-rownames(otu_baseline_complete)
-taxa_list <- colnames(otu_baseline_complete)
-taxa_list<-taxa_list[-(length(taxa_list))]
-taxa_list<-append(taxa_list,rownames(control_expect))
+sample_list_seqcont<-rownames(taxa_Genus_greengenes)
+taxa_list <- colnames(taxa_Genus_greengenes)
+taxa_list<-taxa_list[-(length(taxa_list))] #Remove total OTU's from list
+taxa_list<-unique(append(taxa_list,rownames(expected_taxa_Genus)))
 
-for (a in samplelist_seqcontrols){
+for (a in sample_list_seqcont){
+ relabun_seqcont[a,"Source.Descrip"]<-as.character(metadata_Genus_greengenes[a,"Source.Descrip"])
+ 
  for (b in taxa_list){
-  
-  relabun <- otu_baseline_complete[a,b]
+  relabun <- taxa_Genus_greengenes[a,b]
   
   if(!(is.na(relabun) || is.null(relabun) || relabun==0)){
-   relabun_baseline_seqcontrols[a,b] <- otu_baseline_complete[a,b]/otu_baseline_complete[a,"Total_OTUs"]
-   relabun_baseline_seqcontrols[a,"Source.Descrip"]<-as.character(metadata_baseline[a,"Source.Descrip"])
+   relabun_seqcont[a,b] <- taxa_Genus_greengenes[a,b]/taxa_Genus_greengenes[a,"Total_OTUs"]
+  } else{
+   relabun_seqcont[a,b] <- 0
   }
-  control_type<-as.character(metadata_baseline[a,"Source.Descrip"])
-  relabun_baseline_seqcontrols[control_type,b]<-as.character(control_expect[b,control_type])
-  relabun_baseline_seqcontrols[control_type,"Source.Descrip"]<-control_type
  }
 }
 
-relabun_baseline_seqcontrols[is.na(relabun_baseline_seqcontrols)]=0 #replace na's with 0
-relabun_baseline_seqcontrols[relabun_baseline_seqcontrols=="A"]=0 #replace A's with 0
-write.csv(relabun_baseline_seqcontrols,paste(output_location,"Data\\Baseline\\relabun_baseline_seqcontrols.csv",sep=""))
+write.csv(relabun_seqcont,paste(output_location,"Data\\relabun_seqcont.csv",sep=""))
+
+#Calculate averages
+relabun_seqcont_av<-unique(relabun_seqcont$Source.Descrip)
+
+for (a in taxa_list){
+ 
+ temp<-aggregate(relabun_seqcont[,a], list(relabun_seqcont$Source.Descrip), FUN = function(x) mean(as.numeric(as.character(x))))
+ relabun_seqcont_av<-cbind(relabun_seqcont_av,temp[,2])
+}
+
+#Convert to df, add taxa as colnames
+relabun_seqcont_av<-as.data.frame(relabun_seqcont_av)
+row.names(relabun_seqcont_av)<-relabun_seqcont_av[,1] #col one is Source.Descrip
+relabun_seqcont_av<-relabun_seqcont_av[,-1]
+colnames(relabun_seqcont_av)<-taxa_list
+relabun_seqcont_av[] <- lapply(relabun_seqcont_av, function(x) {
+    as.numeric(as.character(x))})
+
+#add expected rel abundance
+temp<-data.frame()
+for (a in rownames(relabun_seqcont_av)){
+ for (b in taxa_list){
+  temp[paste(a,"_exp",sep=""),b]<-as.numeric(as.character(expected_taxa_Genus[b,a]))
+ }
+}
+
+temp[temp=="A" ]=0 #replace A's with 0
+temp[is.na(temp)]=0 #replace A's with 0
+temp<-as.data.frame(temp)
+relabun_seqcont_av<-rbind(relabun_seqcont_av,temp)
+
+write.csv(relabun_seqcont_av,paste(output_location,"Data\\relabun_seqcont_av.csv",sep=""))
+
+
+
+```
+
+#Relative Abundance  - Seq Controls
+```{r}
+relabun_seqcont<-data.frame()
+
+#Complete Relative Abundance
+sample_list_seqcont<-rownames(taxa_Genus_greengenes)
+taxa_list <- colnames(taxa_Genus_greengenes)
+taxa_list<-taxa_list[-(length(taxa_list))] #Remove total OTU's from list
+taxa_list<-append(taxa_list,rownames(expected_taxa_Genus))
+
+for (a in sample_list_seqcont){
+ for (b in taxa_list){
+  
+  relabun <- taxa_Genus_greengenes[a,b]
+  
+  if(!(is.na(relabun) || is.null(relabun) || relabun==0)){
+   relabun_seqcont[a,b] <- taxa_Genus_greengenes[a,b]/taxa_Genus_greengenes[a,"Total_OTUs"]
+   relabun_seqcont[a,"Source.Descrip"]<-as.character(metadata_Genus_greengenes[a,"Source.Descrip"])
+  }
+  control_type<-as.character(metadata_Genus_greengenes[a,"Source.Descrip"])
+  relabun_seqcont[control_type,b]<-as.character(expected_taxa_Genus[b,control_type])
+  relabun_seqcont[control_type,"Source.Descrip"]<-control_type
+ }
+}
+
+relabun_seqcont[is.na(relabun_seqcont)]=0 #replace na's with 0
+relabun_seqcont[relabun_seqcont=="A"]=0 #replace A's with 0
+write.csv(relabun_seqcont,paste(output_location,"Data\\relabun_seqcontrols.csv",sep=""))
+
+
+
+
+
+
 ```
 
 #Plot graph - IntraControl Variability
