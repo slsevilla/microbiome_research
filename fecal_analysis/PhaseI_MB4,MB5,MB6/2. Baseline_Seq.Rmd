@@ -213,7 +213,7 @@ for (a in sample_list_seqcont){
 write.csv(relabun_seqcont,paste(output_location,"Data\\relabun_seqcont.csv",sep=""))
 
 #Calculate averages
-relabun_seqcont_av<-unique(relabun_seqcont$Source.Descrip)
+relabun_seqcont_av<-sort(unique(relabun_seqcont$Source.Descrip))
 
 for (a in taxa_list){
  
@@ -243,9 +243,6 @@ temp<-as.data.frame(temp)
 relabun_seqcont_av<-rbind(relabun_seqcont_av,temp)
 
 write.csv(relabun_seqcont_av,paste(output_location,"Data\\relabun_seqcont_av.csv",sep=""))
-
-
-
 ```
 
 #Relative Abundance  - Seq Controls
