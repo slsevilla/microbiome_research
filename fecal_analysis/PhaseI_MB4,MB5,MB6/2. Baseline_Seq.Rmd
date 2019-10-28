@@ -21,21 +21,23 @@ control_location<-c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimi
 #Load required libraries
 ############### 
 ```{r}
+library("ape")
 library("biom")
+library(cowplot)
 library(data.table)
 library(ggplot2)
+library(grid)
+library(gridExtra)
+library("igraph")
+library(qiime2R)
+library(phyloseq)
+library(scales)
+library(structSSI)
+library(tibble)
+library(tidyverse)
+library(tidyr)
 library(tm)
 library(vegan)
-library("biom")
-library(tidyr)
-library(cowplot)
-library(scales)
-library(phyloseq)
-library(qiime2R)
-library(tibble)
-library(gridExtra)
-library(tidyverse)
-library(grid)
 ```
 
 #Analysis
@@ -274,11 +276,6 @@ relabun_seqcont[is.na(relabun_seqcont)]=0 #replace na's with 0
 relabun_seqcont[relabun_seqcont=="A"]=0 #replace A's with 0
 write.csv(relabun_seqcont,paste(output_location,"Data\\relabun_seqcontrols.csv",sep=""))
 
-
-
-
-
-
 ```
 
 #Plot graph - IntraControl Variability
@@ -304,5 +301,64 @@ plot_controls<-function(type,dist_meas){
 plot_controls("NMDS","bray")
 plot_controls("PCoA","unifrac")
 
+
+```
+
+#Stats on rel abund
+```{r}
+#From PAPER example
+#https://www.rdocumentation.org/packages/structSSI/versions/1.1.1/topics/Adaptive.GBH
+relabun_sig<-function(phyobj,taxa_level,filtcat){
+ temp_phyobj<- prune_taxa(taxa_sums(phyobj)>0,phyobj) #remove taxa that have no samples with reads - meant for subsetted samples
+ 
+ taxaPValues <- numeric(length = ntaxa(temp_phyobj))
+ names(taxaPValues) <- taxa_names(temp_phyobj)
+ environments <- sample_data(temp_phyobj)$Source.Descrip
+ abundances <- otu_table(temp_phyobj)
+ 
+ for (taxaIndex in 1:ntaxa(temp_phyobj)) {
+
+  abundModel <- summary(lm(as.vector(abundances[taxaIndex, ]) ~environments))
+  taxaPValues[taxaIndex] <- with(abundModel, pf(fstatistic[1],fstatistic[2], fstatistic[3], lower.tail = FALSE))
+ }
+ 
+ chlamydiae.families <- na.omit(tax_table(temp_phyobj)[, taxa_level])
+ taxaPValues <- taxaPValues[taxa_names(chlamydiae.families)]
+ family.AGBH <- Adaptive.GBH(unadj.p = taxaPValues, group.index = matrix(chlamydiae.families), method = "lsl")
+ summary(family.AGBH)
+ 
+ sub.AGBH<-family.AGBH@p.vals
+ sub.AGBH<-sub.AGBH[grepl("g__", sub.AGBH$group),]#remove all not at taxa level
+ #sub.AGBH<-sub.AGBH[grepl("\\*",sub.AGBH$adj.significance),] #remove all not at 0.05 sig
+ sub.AGBH<-subset(sub.AGBH,sub.AGBH$adjp<.5)
+
+ #Remove sig col
+ sub.AGBH<-sub.AGBH[-4]
+ melt.AGBH <- melt(sub.AGBH, id.vars="group")
+
+ ggplot(melt.AGBH, aes(1:nrow(melt.AGBH), value, col=variable,shape=group)) + 
+  geom_point(size=5) +
+  ylab("Adjusted p-values") +
+  title("GBH Adjustment") +
+  scale_x_discrete(name ="Hypothesis sorted by adjusted p-values", 
+                    limits=c(1:nrow(melt.AGBH)))
+ 
+ 
+ chl.tree <- get.edgelist(as.igraph(phy_tree(temp_phyobj)))
+ chl.pval <- treePValues(chl.tree, abundances, environments)
+ 
+}
+
+subset_list<-c("Seq.Control")
+physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+
+relabun_sig(physeq_scale_sub,"Genus","Source.Descrip")
+
+#Testing
+phyobj<-physeq_scale_sub
+taxa_level<-c("Genus")
+filtcat<-"Source.Descrip"
+remove(phyobj,taxa_level,filtcat)
+remove(temp_phyobj,taxaPValues,environments,abundances,chlamydiae.families,taxaPValues,family.AGBH)
 
 ```
