@@ -140,11 +140,17 @@ if(phylo_number>1){
  for (i in 2:phylo_number){
   sample_name<-paste("sampledata",count,sep="")
   phy_name<-paste("physeq_complete",count,sep="")
-  assign(sample_name,as.data.frame(sample_data(get(phy_name))))
+  temp<-data.frame(lapply(sample_data(get(phy_name)),as.character), stringsAsFactors = FALSE)
+  rownames(temp)<-temp$Sample.ID
   
-  for (a in colnames(get(sample_name))){
-   for (b in rownames(get(sample_name))){
-    sampledata1[b,a]<-get(sample_name)[b,a]
+  for (a in colnames(temp)){
+   for (b in rownames(temp)){
+    
+    if(is.factor(sampledata1[[a]]) && is.na(table((levels(sampledata1[[a]])==temp[b,a]))["TRUE"]) ){
+     levels(sampledata1[[a]])<-c(levels(sampledata1[[a]]),temp[b,a]) #if factor level doesn't exist in df, add it before adding variable
+    }
+    
+    sampledata1[b,a]<-temp[b,a]
    }
   }
   count=count+1
