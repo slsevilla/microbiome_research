@@ -14,6 +14,8 @@ reference_db<-"greengenes"
 
 file_ext<-"_extcontrol_std.csv"
 
+ext_choice<-"STD"
+
 control_location<-c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Controls\\Taxonomy\\")
 ```
 
@@ -86,8 +88,21 @@ for(a in taxa_levels){
 #NOTE: must run 1. Initial processing
 #physeq_scale include all samples
 
-subset_list<-c("Ext.Control")
+#Subset to create standard ext only
+subset_list<-c("Ext.Control") 
 physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+ 
+if(ext_choice=="STD"){
+
+ subset_list<-unique((sample_data(physeq_scale_sub)$Reciept))
+ subset_list<-subset_list[1:22]
+ physeq_scale_sub<-subset_samples(physeq_scale, Reciept %in% subset_list)
+} else{
+ #Subset to create homo ext only
+ subset_list<-unique((sample_data(physeq_scale_sub)$Reciept))
+ subset_list<-subset_list[23:34]
+ physeq_scale_sub<-subset_samples(physeq_scale, Reciept %in% subset_list)
+}
 ```
 
 #OTU Counts by sample
