@@ -12,8 +12,7 @@ output_location<-c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimiz
 taxa_levels<-c("Genus")
 reference_db<-"greengenes"
 
-manifest_name<-paste("metadata_",taxa_levels,"_",reference_db,"_extcontrol.csv",sep="")
-taxa_file<-paste("taxa_",taxa_levels,"_",reference_db,"_extcontrol.csv",sep="")
+file_ext<-"_extcontrol_std.csv"
 
 control_location<-c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Controls\\Taxonomy\\")
 ```
@@ -63,7 +62,7 @@ for(a in taxa_levels){
  for (b in reference_db){
   metadata_db_name<-paste("metadata_",a,"_",b,sep="")
   
-  temp <- read.table(paste(output_location,"Taxa\\",metadata_db_name,"_extcontrol.csv",sep=""),sep=",",header= TRUE)
+  temp <- read.table(paste(output_location,"Taxa\\",metadata_db_name,file_ext,sep=""),sep=",",header= TRUE)
   rownames(temp)<-temp$X
   temp<-temp[-1]
   
@@ -72,7 +71,7 @@ for(a in taxa_levels){
   
   taxa_db_name<-paste("taxa_",a,"_",b,sep="")
   
-  temp<-read.table(paste(output_location,"Taxa\\",taxa_db_name,"_extcontrol.csv",sep=""),sep=",",header= TRUE)
+  temp<-read.table(paste(output_location,"Taxa\\",taxa_db_name,file_ext,sep=""),sep=",",header= TRUE)
   rownames(temp)<-temp$X
   temp<-temp[-1]
   
@@ -97,6 +96,8 @@ Determine total OTUs
 taxa_Genus_greengenes$Total_OTUs <- rowSums(taxa_Genus_greengenes)
 
 ```
+
+
 
 #4. Observed to Expected Counts
 ```{r}
