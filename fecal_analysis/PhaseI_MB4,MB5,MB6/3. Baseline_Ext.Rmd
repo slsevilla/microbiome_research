@@ -40,54 +40,62 @@ library(tm)
 library(vegan)
 ```
 
+
 #Analysis
 ###############
-#1. Taxonomy Reference - Expected frequencies
+#Taxonomy Reference - Expected frequencies
 ```{r}
-#Read in controls taxonomy file, grouped by Genus
-control_expect <- read.table("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Controls\\Taxonomy\\Taxonomy_Genus_2019.txt",sep="\t",header=TRUE)
-rownames(control_expect) <- unique(control_expect[,"Genus"])
-```
-
-#2. Load OTU and metadata tables
-```{r}
-#Create location link
-project_location= paste("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\",project_name,sep="")
-
-#Read in database with variable information
-metadata_baseline <- read.table(paste(project_location,"\\Output\\R\\OTUs\\",manifest_name,sep=""),sep=",",header= TRUE)
-rownames(metadata_baseline)<-metadata_baseline$X
-metadata_baseline<-metadata_baseline[-1]
-
-otu_baseline_complete <- read.table(paste(project_location,"\\Output\\R\\OTUs\\",otu_name,sep=""),sep=",",header= TRUE)
-rownames(otu_baseline_complete)<-otu_baseline_complete$X
-otu_baseline_complete<-otu_baseline_complete[-1]
-
-rownames(metadata_baseline)==rownames(otu_baseline_complete) #Should be true
-```
-
-#3. OTU Counts by sample
-Read in OTU information, and determine total OTUs
-```{r}
-genus_found<-colnames(otu_baseline_complete)
-samplelist_extcontrols<-rownames(otu_baseline_complete)
-
-#For each sample, determine the total read counts
-for (a in samplelist_extcontrols){
- #Set sum to 0
- sum=0
+#Read in controls taxonomy file, grouped by taxa
+for (a in taxa_levels){
+ control_expect <- read.table(paste(control_location,"Taxonomy_",taxa_levels,"_2019.txt",sep=""),sep="\t",header=TRUE)
+ rownames(control_expect) <- unique(control_expect[,taxa_levels])
  
- #For each genus
- for (b in genus_found){
-  
-  #Add the number of counts together
-  sum <- otu_baseline_complete[a,b] + sum
- }
- 
- #When complete, push the sum to a new "Total_OTUs" row
- otu_baseline_complete[a,"Total_OTUs"] <- sum
+ control_db_name<-paste("expected_taxa_",a,sep="")
+ assign(control_db_name,control_expect)
+ remove(control_expect)
 }
-write.csv(otu_baseline_complete,"test.csv")
+
+```
+
+#Load OTU and metadata tables
+```{r}
+for(a in taxa_levels){
+ for (b in reference_db){
+  metadata_db_name<-paste("metadata_",a,"_",b,sep="")
+  
+  temp <- read.table(paste(output_location,"Taxa\\",metadata_db_name,"_extcontrol.csv",sep=""),sep=",",header= TRUE)
+  rownames(temp)<-temp$X
+  temp<-temp[-1]
+  
+  assign(metadata_db_name,temp)
+  remove(temp)
+  
+  taxa_db_name<-paste("taxa_",a,"_",b,sep="")
+  
+  temp<-read.table(paste(output_location,"Taxa\\",taxa_db_name,"_extcontrol.csv",sep=""),sep=",",header= TRUE)
+  rownames(temp)<-temp$X
+  temp<-temp[-1]
+  
+  assign(taxa_db_name,temp)
+  remove(temp)
+ }
+}
+```
+
+#Load phylo object
+```{r}
+#NOTE: must run 1. Initial processing
+#physeq_scale include all samples
+
+subset_list<-c("Ext.Control")
+physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+```
+
+#OTU Counts by sample
+Determine total OTUs
+```{r}
+taxa_Genus_greengenes$Total_OTUs <- rowSums(taxa_Genus_greengenes)
+
 ```
 
 #4. Observed to Expected Counts
