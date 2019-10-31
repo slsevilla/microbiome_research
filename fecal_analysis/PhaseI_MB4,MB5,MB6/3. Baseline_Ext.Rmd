@@ -96,12 +96,12 @@ if(ext_choice=="STD"){
 
  subset_list<-unique((sample_data(physeq_scale_sub)$Reciept))
  subset_list<-subset_list[1:22]
- physeq_scale_sub<-subset_samples(physeq_scale, Reciept %in% subset_list)
+ physeq_scale_sub<-subset_samples(physeq_scale_sub, Reciept %in% subset_list)
 } else{
  #Subset to create homo ext only
  subset_list<-unique((sample_data(physeq_scale_sub)$Reciept))
  subset_list<-subset_list[23:34]
- physeq_scale_sub<-subset_samples(physeq_scale, Reciept %in% subset_list)
+ physeq_scale_sub<-subset_samples(physeq_scale_sub, Reciept %in% subset_list)
 }
 ```
 
@@ -112,7 +112,92 @@ taxa_Genus_greengenes$Total_OTUs <- rowSums(taxa_Genus_greengenes)
 
 ```
 
+#Observed to Expected Counts
+```{r}
+#Testing
+output<-tar_tdr
+db<-"greengenes"
+tl<-"Genus"
+ct<-"DZ35316"
+otherfilt<-"MagMax Microbiome Ultra Kit"
+remove(output,db,tl,ct,otherfilt)
+remove(sample_list,exp_taxa_list,unexp_taxa_list)
 
+tp_fp_fn_samplelevel<- function(output,db,tl,ct,otherfilt){
+ sample_list<-intersect(rownames(get(paste("taxa",tl,db,sep="_"))),rownames(subset(get(paste("metadata",tl,db,sep="_")),Source.Descrip==ct)))
+ sample_list<-intersect(sample_list,rownames(subset(get(paste("metadata",tl,db,sep="_")),Ext.Kit==otherfilt)))#add another layer of filtering based on extraction kit
+ 
+ exp_taxa_list<-rownames(get(paste("expected_taxa",tl,sep="_"))[ get(paste("expected_taxa",tl,sep="_"))[[ct]] !='A' , ])
+ unexp_taxa_list<-setdiff(colnames(get(paste("taxa",tl,db,sep="_"))),exp_taxa_list)
+ unexp_taxa_list<-unexp_taxa_list[-length(unexp_taxa_list)] #Remove Total_OTUs column
+ 
+ for (a in sample_list){
+  fp=0
+  fn=0
+  tp=0
+  
+  taxa_db<-get(paste("taxa",tl,db,sep="_"))
+  
+  #Run through expected taxa list
+  for (b in exp_taxa_list){
+   otu_count<-taxa_db[a,b]
+
+   
+   if(is.null(otu_count) || otu_count==0 || is.na(otu_count)){
+    fn=fn+1
+
+   } else if (otu_count>0){
+    tp=tp+1
+   }
+  }
+  
+  #Run through all taxa not expected
+  for (b in unexp_taxa_list){
+   otu_count<-taxa_db[a,b]
+   
+   if(otu_count==0){
+    next;
+   } else if (otu_count>0){
+    fp=fp+1
+   }
+  }
+  
+  output[a,"ControlType"]<-ct
+  output[a,"Kit"]<-get(paste("metadata",tl,db,sep="_"))[a,"Ext.Kit"]
+  output[a,"Expected"]<-length(exp_taxa_list)
+  output[a,paste("TP",db,tl,sep="_")]<-tp
+  output[a,paste("FP",db,tl,sep="_")]<-fp
+  output[a,paste("FN",db,tl,sep="_")]<-fn
+  output[a,paste("TAR",db,tl,sep="_")]<-tp/(tp+fp)
+  output[a,paste("TDR",db,tl,sep="_")]<-tp/(tp+fn)
+  output[a,paste("F1",db,tl,sep="_")]<-2*((tp/(tp+fp))*(tp/(tp+fn)))/((tp/(tp+fp))+(tp/(tp+fn)))
+ }
+ 
+ return(output)
+}
+
+#Determine which controls
+control_type<-unique(sample_data(physeq_scale_sub)$Source.Descrip)
+control_type<-control_type[-c(3,4)] #Remove Water and Robogut
+control_type
+
+other_filt<-unique(sample_data(physeq_scale_sub)$Ext.Kit)
+
+
+tar_tdr<-data.frame()
+for(a in reference_db){
+ for (b in taxa_levels){
+  for (c in control_type){
+   for (d in other_filt){
+    tar_tdr<-tp_fp_fn_samplelevel(tar_tdr,a,b,c,d) #D: change subsetting of sample_list as needed within funciton IE Source.Descrip or Ext.Kit
+   }
+  }
+ }
+}
+
+write.csv(tar_tdr,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext.csv",sep=""))
+
+```
 
 #4. Observed to Expected Counts
 ```{r}
