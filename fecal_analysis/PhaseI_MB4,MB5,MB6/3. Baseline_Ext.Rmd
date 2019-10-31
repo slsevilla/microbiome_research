@@ -202,25 +202,74 @@ write.csv(tar_tdr,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext.csv",sep="
 
 #Average by Control
 ```{r}
-tar_tdr_av<-aggregate(tar_tdr[, 3], list(tar_tdr$ControlType), mean) #Expected tax, make col 3 for ext
-row.names(tar_tdr_av)<-tar_tdr_av$Group.1
-tar_tdr_av<-tar_tdr_av[,-1]
+#Testing
+# db<-subset(tar_tdr,Kit=="DSP Virus")
+# opts<-"DSP Virus"
+# db<-tar_tdr
+# opts<-"STD"
+# remove(db,opts,temp,count)
 
-tar_tdr_av<-cbind(tar_tdr_av,aggregate(tar_tdr[, 6], list(tar_tdr$ControlType), mean)) #TAR Average
-row.names(tar_tdr_av)<-tar_tdr_av$Group.1
-tar_tdr_av<-tar_tdr_av[,-3]
+#update cols for kit inclusion
+tar_tdr_av_kit<-function(db,opts){
+ 
+ temp<-aggregate(db[, 3], list(db$ControlType), mean) #Expected tax
+ row.names(temp)<-temp$Group.1
+ temp<-temp[,-1]
+ 
+ temp<-cbind(temp,aggregate(db[, 7], list(db$ControlType), mean)) #TAR Average
+ row.names(temp)<-temp$Group.1
+ temp<-temp[,-2]
+ 
+ temp<-cbind(temp,aggregate(db[, 8], list(db$ControlType), mean)) #TDR Average
+ row.names(temp)<-temp$Group.1
+ temp<-temp[,-3]
+ 
+ temp<-cbind(temp,aggregate(db[, 9], list(db$ControlType), mean)) #F1 Average
+ temp<-temp[,-4]
+ 
+ colnames(temp)<-c("Expected","TAR","TDR","F1Score")
+ 
+ if(opts=="STD"){
+  
+ } else{
+  count=1
+  
+  for(a in rownames(temp)){
+   temp[a,"Kit"]<-opts
+   temp[a,"Control"]<-a
+   rownames(temp)[count]<-paste(a,opts,sep="_")
+   count=count+1
+  }
+ }
 
-tar_tdr_av<-cbind(tar_tdr_av,aggregate(tar_tdr[, 7], list(tar_tdr$ControlType), mean)) #TDR Average
-row.names(tar_tdr_av)<-tar_tdr_av$Group.1
-tar_tdr_av<-tar_tdr_av[,-3]
+ return(temp)
+}
 
-tar_tdr_av<-cbind(tar_tdr_av,aggregate(tar_tdr[, 8], list(tar_tdr$ControlType), mean)) #F1 Average
-tar_tdr_av<-tar_tdr_av[,-4]
+#Run for averages
+tar_tdr_av<-data.frame()
+filt_list="STD"
+tar_tdr_av<-tar_tdr_av_kit(tar_tdr,filt_list)
+write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_av.csv",sep=""))
 
-colnames(tar_tdr_av)<-c("Expected","TAR","TDR","F1Score")
-tar_tdr_av
 
-write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_seq_av.csv",sep=""))
+#Run by kit
+tar_tdr_av<-data.frame("Expected"=1,"TAR"=1,"TDR"=1,"F1Score"=1,"Kit"=1,"Control"=1)
+
+filt_list<-unique(tar_tdr$Kit)
+
+for(a in filt_list){
+ temp<-subset(tar_tdr,Kit==a)
+
+ tar_tdr_av<-rbind(tar_tdr_av,tar_tdr_av_kit(temp,a))
+ remove(temp)
+}
+
+tar_tdr_av<-tar_tdr_av[-1,]#Remove starter row
+
+write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_av_kit.csv",sep=""))
+
+
+
 ```
 
 #4. Observed to Expected Counts
