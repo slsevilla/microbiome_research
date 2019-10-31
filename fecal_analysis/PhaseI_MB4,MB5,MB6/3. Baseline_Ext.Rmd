@@ -115,13 +115,13 @@ taxa_Genus_greengenes$Total_OTUs <- rowSums(taxa_Genus_greengenes)
 #Observed to Expected Counts
 ```{r}
 #Testing
-output<-tar_tdr
-db<-"greengenes"
-tl<-"Genus"
-ct<-"DZ35316"
-otherfilt<-"MagMax Microbiome Ultra Kit"
-remove(output,db,tl,ct,otherfilt)
-remove(sample_list,exp_taxa_list,unexp_taxa_list)
+# output<-tar_tdr
+# db<-"greengenes"
+# tl<-"Genus"
+# ct<-"DZ35316"
+# otherfilt<-"MagMax Microbiome Ultra Kit"
+# remove(output,db,tl,ct,otherfilt)
+# remove(sample_list,exp_taxa_list,unexp_taxa_list)
 
 tp_fp_fn_samplelevel<- function(output,db,tl,ct,otherfilt){
  sample_list<-intersect(rownames(get(paste("taxa",tl,db,sep="_"))),rownames(subset(get(paste("metadata",tl,db,sep="_")),Source.Descrip==ct)))
@@ -130,6 +130,7 @@ tp_fp_fn_samplelevel<- function(output,db,tl,ct,otherfilt){
  exp_taxa_list<-rownames(get(paste("expected_taxa",tl,sep="_"))[ get(paste("expected_taxa",tl,sep="_"))[[ct]] !='A' , ])
  unexp_taxa_list<-setdiff(colnames(get(paste("taxa",tl,db,sep="_"))),exp_taxa_list)
  unexp_taxa_list<-unexp_taxa_list[-length(unexp_taxa_list)] #Remove Total_OTUs column
+ unexp_taxa_list<-unexp_taxa_list[-45]#Remove Higher Genus
  
  for (a in sample_list){
   fp=0
@@ -197,6 +198,29 @@ for(a in reference_db){
 
 write.csv(tar_tdr,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext.csv",sep=""))
 
+```
+
+#Average by Control
+```{r}
+tar_tdr_av<-aggregate(tar_tdr[, 3], list(tar_tdr$ControlType), mean) #Expected tax, make col 3 for ext
+row.names(tar_tdr_av)<-tar_tdr_av$Group.1
+tar_tdr_av<-tar_tdr_av[,-1]
+
+tar_tdr_av<-cbind(tar_tdr_av,aggregate(tar_tdr[, 6], list(tar_tdr$ControlType), mean)) #TAR Average
+row.names(tar_tdr_av)<-tar_tdr_av$Group.1
+tar_tdr_av<-tar_tdr_av[,-3]
+
+tar_tdr_av<-cbind(tar_tdr_av,aggregate(tar_tdr[, 7], list(tar_tdr$ControlType), mean)) #TDR Average
+row.names(tar_tdr_av)<-tar_tdr_av$Group.1
+tar_tdr_av<-tar_tdr_av[,-3]
+
+tar_tdr_av<-cbind(tar_tdr_av,aggregate(tar_tdr[, 8], list(tar_tdr$ControlType), mean)) #F1 Average
+tar_tdr_av<-tar_tdr_av[,-4]
+
+colnames(tar_tdr_av)<-c("Expected","TAR","TDR","F1Score")
+tar_tdr_av
+
+write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_seq_av.csv",sep=""))
 ```
 
 #4. Observed to Expected Counts
