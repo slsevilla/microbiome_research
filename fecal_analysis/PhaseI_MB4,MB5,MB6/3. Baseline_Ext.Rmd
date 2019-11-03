@@ -267,83 +267,69 @@ for(a in filt_list){
 tar_tdr_av<-tar_tdr_av[-1,]#Remove starter row
 
 write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_av_kit.csv",sep=""))
-
-
-
 ```
 
-#4. Observed to Expected Counts
+#Relative Abundance  - Ext Controls
 ```{r}
-samplelist_extcontrols <- subset(metadata_baseline,Sample.Cat!="Ext.Blank") #Remove EB's since they have no expected values
-samplelist_extcontrols <- rownames(samplelist_extcontrols)
-observed_count=0
-observed_baseline_extcontrols<- data.frame()
+relabun_seqcont<-data.frame()
 
-#Individual Samples
-for (a in samplelist_extcontrols){
- control_type <- as.String(metadata_baseline[a,"Source.Descrip"])
- genus_temp <- control_expect[,c("Gram",control_type)]
- genus_temp <- row.names(subset(genus_temp,!(genus_temp[,control_type]=="A")))
+#Complete Relative Abundance
+sample_list_seqcont<-rownames(taxa_Genus_greengenes)
+taxa_list <- colnames(taxa_Genus_greengenes)
+taxa_list<-taxa_list[-(length(taxa_list))] #Remove total OTU's from list
+taxa_list<-unique(append(taxa_list,rownames(expected_taxa_Genus)))
+
+for (a in sample_list_seqcont){
+ relabun_seqcont[a,"Source.Descrip"]<-as.character(metadata_Genus_greengenes[a,"Source.Descrip"])
  
- for (b in genus_temp){
-  otu_count <- otu_baseline_complete[a,b]
+ for (b in taxa_list){
+  relabun <- taxa_Genus_greengenes[a,b]
   
-  if(!(is.na(otu_count) || is.null(otu_count) || otu_count==0)){
-    observed_count= observed_count+1
+  if(!(is.na(relabun) || is.null(relabun) || relabun==0)){
+   relabun_seqcont[a,b] <- taxa_Genus_greengenes[a,b]/taxa_Genus_greengenes[a,"Total_OTUs"]
+  } else{
+   relabun_seqcont[a,b] <- 0
   }
-    
- }
- 
- observed_baseline_extcontrols[a,"Observed"] <- observed_count
- observed_baseline_extcontrols[a,"Expected"] <- length(genus_temp)
- observed_baseline_extcontrols[a,"Source.Descrip"] <- metadata_baseline[a,"Source.Descrip"]
- observed_baseline_extcontrols[a,"Ext.Kit"] <- metadata_baseline[a,"Ext.Kit"]
- observed_baseline_extcontrols[a,"Homo.Method"] <- metadata_baseline[a,"Homo.Method"]
- observed_baseline_extcontrols[a,"Afa.1"] <- metadata_baseline[a,"Afa.1"]
- observed_baseline_extcontrols[a,"Afa.2"] <- metadata_baseline[a,"Afa.2"]
-
- 
- observed_count=0
-}
-
-write.csv(observed_baseline_extcontrols,paste(project_location,"\\Output\\R\\Data\\Baseline\\observed_baseline_extcontrols.csv",sep=""))
-
-#Average by Source.Descrip and Ext.Kit
-observed_count=0
-count=0
-source_list<-unique(observed_baseline_extcontrols$Source.Descrip)
-kit_list <- unique(observed_baseline_extcontrols$Ext.Kit)
-
-for (a in kit_list){
- for (b in source_list){
-  for (c in samplelist_extcontrols){
-   control_type <- as.String(metadata_baseline[c,"Source.Descrip"])
-   kit_type <- as.String(metadata_baseline[c,"Ext.Kit"])
-   
-   if(a==kit_type & b==control_type ){
-    observed_count<-observed_baseline_extcontrols[c,"Observed"]+observed_count
-    expected_count<-observed_baseline_extcontrols[c,"Expected"]
-    count=count+1
-
-    
-    sample_name <- paste(b,a,sep="_")
-    observed_baseline_extcontrols[sample_name,"Source.Descrip"]<-metadata_baseline[c,"Source.Descrip"]
-    observed_baseline_extcontrols[sample_name,"Ext.Kit"]<-metadata_baseline[c,"Ext.Kit"]
-    observed_baseline_extcontrols[sample_name,"Observed"]<-observed_count/count
-    observed_baseline_extcontrols[sample_name,"Expected"]<-expected_count
-    observed_baseline_extcontrols[a,"Homo.Method"] <- metadata_baseline[c,"Homo.Method"]
-    observed_baseline_extcontrols[a,"Afa.1"] <- metadata_baseline[c,"Afa.1"]
-    observed_baseline_extcontrols[a,"Afa.2"] <- metadata_baseline[c,"Afa.2"]
-   }
-  }
-  
-  observed_count=0
-  count=0
  }
 }
 
-write.csv(observed_baseline_extcontrols,paste(project_location,"\\Output\\R\\Data\\Baseline\\observed_baseline_extcontrols.csv",sep=""))
+write.csv(relabun_seqcont,paste(output_location,"Data\\relabun_seqcont.csv",sep=""))
+
+#Calculate averages
+relabun_seqcont_av<-sort(unique(relabun_seqcont$Source.Descrip))
+
+for (a in taxa_list){
+ 
+ temp<-aggregate(relabun_seqcont[,a], list(relabun_seqcont$Source.Descrip), FUN = function(x) mean(as.numeric(as.character(x))))
+ relabun_seqcont_av<-cbind(relabun_seqcont_av,temp[,2])
+}
+
+#Convert to df, add taxa as colnames
+relabun_seqcont_av<-as.data.frame(relabun_seqcont_av)
+row.names(relabun_seqcont_av)<-relabun_seqcont_av[,1] #col one is Source.Descrip
+relabun_seqcont_av<-relabun_seqcont_av[,-1]
+colnames(relabun_seqcont_av)<-taxa_list
+relabun_seqcont_av[] <- lapply(relabun_seqcont_av, function(x) {
+    as.numeric(as.character(x))})
+
+#add expected rel abundance
+temp<-data.frame()
+for (a in rownames(relabun_seqcont_av)){
+ for (b in taxa_list){
+  temp[paste(a,"_exp",sep=""),b]<-as.numeric(as.character(expected_taxa_Genus[b,a]))
+ }
+}
+
+temp[temp=="A" ]=0 #replace A's with 0
+temp[is.na(temp)]=0 #replace A's with 0
+temp<-as.data.frame(temp)
+relabun_seqcont_av<-rbind(relabun_seqcont_av,temp)
+
+write.csv(relabun_seqcont_av,paste(output_location,"Data\\relabun_seqcont_av.csv",sep=""))
 ```
+
+
+
 
 #5. Relative Abundance  - Ext Controls
 ```{r}
