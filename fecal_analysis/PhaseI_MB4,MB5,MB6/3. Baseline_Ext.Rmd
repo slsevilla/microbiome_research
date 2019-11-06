@@ -12,9 +12,9 @@ output_location<-c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimiz
 taxa_levels<-c("Genus")
 reference_db<-"greengenes"
 
-file_ext<-"_extcontrol_std.csv"
+file_ext<-"_extcontrol_hmo.csv"
 
-ext_choice<-"STD"
+ext_choice<-"HOMO"
 
 control_location<-c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Controls\\Taxonomy\\")
 ```
@@ -172,6 +172,7 @@ tp_fp_fn_samplelevel<- function(output,db,tl,ct,otherfilt){
   output[a,paste("TAR",db,tl,sep="_")]<-tp/(tp+fp)
   output[a,paste("TDR",db,tl,sep="_")]<-tp/(tp+fn)
   output[a,paste("F1",db,tl,sep="_")]<-2*((tp/(tp+fp))*(tp/(tp+fn)))/((tp/(tp+fp))+(tp/(tp+fn)))
+  output[a,"Homo.Method"]<-get(paste("metadata",tl,db,sep="_"))[a,"Homo.Method"]
  }
  
  return(output)
@@ -196,21 +197,21 @@ for(a in reference_db){
  }
 }
 
-write.csv(tar_tdr,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext.csv",sep=""))
+write.csv(tar_tdr,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_",ext_choice,".csv",sep=""))
 
 ```
 
 #Average by Control
 ```{r}
 #Testing
-# db<-subset(tar_tdr,Kit=="DSP Virus")
-# opts<-"DSP Virus"
-# db<-tar_tdr
-# opts<-"STD"
-# remove(db,opts,temp,count)
+db<-subset(tar_tdr,Kit=="DSP Virus")
+opts<-"DSP Virus"
+db<-tar_tdr
+opts<-"HOMO"
+remove(db,opts,temp,count)
 
 #update cols for kit inclusion
-tar_tdr_av_kit<-function(db,opts){
+tar_tdr_av_kit<-function(db,opts,opts2){
  
  temp<-aggregate(db[, 3], list(db$ControlType), mean) #Expected tax
  row.names(temp)<-temp$Group.1
@@ -237,7 +238,8 @@ tar_tdr_av_kit<-function(db,opts){
   for(a in rownames(temp)){
    temp[a,"Kit"]<-opts
    temp[a,"Control"]<-a
-   rownames(temp)[count]<-paste(a,opts,sep="_")
+   temp[a,"Homo.Method"]<-opts2
+   rownames(temp)[count]<-paste(a,opts,opts2,sep="_")
    count=count+1
   }
  }
@@ -245,76 +247,115 @@ tar_tdr_av_kit<-function(db,opts){
  return(temp)
 }
 
-#Run for averages
 tar_tdr_av<-data.frame()
-filt_list="STD"
-tar_tdr_av<-tar_tdr_av_kit(tar_tdr,filt_list)
-write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_av.csv",sep=""))
+if(ext_choice=="STD"){
+ #Run for averages
+ tar_tdr_av<-tar_tdr_av_kit(tar_tdr,ext_choice) 
+ write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_av.csv",sep=""))
+ 
+ #Run by Kit
+ tar_tdr_av<-data.frame("Expected"=1,"TAR"=1,"TDR"=1,"F1Score"=1,"Kit"=1,"Control"=1,"Homo.Method"=1)
+ filt_list<-unique(tar_tdr$Kit)
+ 
+ for(a in filt_list){
+  temp<-subset(tar_tdr,Kit==a)
+ 
+  tar_tdr_av<-rbind(tar_tdr_av,tar_tdr_av_kit(temp,a,""))
+  remove(temp)
+ }
+ 
+ tar_tdr_av<-tar_tdr_av[-1,]#Remove starter row
+ write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_av_kit.csv",sep=""))
+ 
+ } else{
 
+ #Run by Homog
+ tar_tdr_av<-data.frame("Expected"=1,"TAR"=1,"TDR"=1,"F1Score"=1,"Kit"=1,"Control"=1, "Homo.Method"=1)
+ filt_list<-unique(tar_tdr$Kit)
+ filt_list1<-unique(tar_tdr$Homo.Method)
 
-#Run by kit
-tar_tdr_av<-data.frame("Expected"=1,"TAR"=1,"TDR"=1,"F1Score"=1,"Kit"=1,"Control"=1)
-
-filt_list<-unique(tar_tdr$Kit)
-
-for(a in filt_list){
- temp<-subset(tar_tdr,Kit==a)
-
- tar_tdr_av<-rbind(tar_tdr_av,tar_tdr_av_kit(temp,a))
- remove(temp)
+ for (a in filt_list1){
+  temp<-subset(tar_tdr,Homo.Method==a)
+ 
+  tar_tdr_av<-rbind(tar_tdr_av,tar_tdr_av_kit(temp,"",a)) #db, kit, homo
+  #remove(temp)
+ }
+ 
+ tar_tdr_av<-tar_tdr_av[-1,]#Remove starter row
+ write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_av_homo.csv",sep=""))
+ 
+ #Run by homog, by kit
+ tar_tdr_av<-data.frame("Expected"=1,"TAR"=1,"TDR"=1,"F1Score"=1,"Kit"=1,"Control"=1, "Homo.Method"=1)
+ for(a in filt_list){
+  temp<-subset(tar_tdr,Kit==a)
+  for (b in filt_list1){
+   temp1<-subset(temp,Homo.Method==b)
+   print(a)
+   print(b)
+   if(nrow(temp)>0){
+    print ("OK")
+    tar_tdr_av<-rbind(tar_tdr_av,tar_tdr_av_kit(temp,a,b))
+   }
+  }
+ }
+ 
+ tar_tdr_av<-tar_tdr_av[-1,]#Remove starter row
+ write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_av_homo_kit.csv",sep=""))
+ #remove(temp)
 }
 
-tar_tdr_av<-tar_tdr_av[-1,]#Remove starter row
 
-write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_av_kit.csv",sep=""))
 ```
 
 #Relative Abundance  - Ext Controls
 ```{r}
-relabun_seqcont<-data.frame()
+relabun_extcont<-data.frame()
 
 #Complete Relative Abundance
-sample_list_seqcont<-rownames(taxa_Genus_greengenes)
+sample_list_extcont<-rownames(taxa_Genus_greengenes)
 taxa_list <- colnames(taxa_Genus_greengenes)
 taxa_list<-taxa_list[-(length(taxa_list))] #Remove total OTU's from list
 taxa_list<-unique(append(taxa_list,rownames(expected_taxa_Genus)))
 
-for (a in sample_list_seqcont){
- relabun_seqcont[a,"Source.Descrip"]<-as.character(metadata_Genus_greengenes[a,"Source.Descrip"])
+for (a in sample_list_extcont){
+ relabun_extcont[a,"Source.Descrip"]<-as.character(metadata_Genus_greengenes[a,"Source.Descrip"])
+ relabun_extcont[a,"Ext.Kit"]<-as.character(metadata_Genus_greengenes[a,"Ext.Kit"])
+ relabun_extcont[a,"Homo.Method"]<-as.character(metadata_Genus_greengenes[a,"Homo.Method"])
+
  
  for (b in taxa_list){
   relabun <- taxa_Genus_greengenes[a,b]
   
   if(!(is.na(relabun) || is.null(relabun) || relabun==0)){
-   relabun_seqcont[a,b] <- taxa_Genus_greengenes[a,b]/taxa_Genus_greengenes[a,"Total_OTUs"]
+   relabun_extcont[a,b] <- taxa_Genus_greengenes[a,b]/taxa_Genus_greengenes[a,"Total_OTUs"]
   } else{
-   relabun_seqcont[a,b] <- 0
+   relabun_extcont[a,b] <- 0
   }
  }
 }
 
-write.csv(relabun_seqcont,paste(output_location,"Data\\relabun_seqcont.csv",sep=""))
+write.csv(relabun_extcont,paste(output_location,"Data\\relabun_extcont_",ext_choice,".csv",sep=""))
 
-#Calculate averages
-relabun_seqcont_av<-sort(unique(relabun_seqcont$Source.Descrip))
+#Calculate averages - Across all kits/homog
+relabun_extcont_av<-sort(unique(relabun_extcont$Source.Descrip))
 
 for (a in taxa_list){
  
- temp<-aggregate(relabun_seqcont[,a], list(relabun_seqcont$Source.Descrip), FUN = function(x) mean(as.numeric(as.character(x))))
- relabun_seqcont_av<-cbind(relabun_seqcont_av,temp[,2])
+ temp<-aggregate(relabun_extcont[,a], list(relabun_extcont$Source.Descrip), FUN = function(x) mean(as.numeric(as.character(x))))
+ relabun_extcont_av<-cbind(relabun_extcont_av,temp[,2])
 }
 
 #Convert to df, add taxa as colnames
-relabun_seqcont_av<-as.data.frame(relabun_seqcont_av)
-row.names(relabun_seqcont_av)<-relabun_seqcont_av[,1] #col one is Source.Descrip
-relabun_seqcont_av<-relabun_seqcont_av[,-1]
-colnames(relabun_seqcont_av)<-taxa_list
-relabun_seqcont_av[] <- lapply(relabun_seqcont_av, function(x) {
+relabun_extcont_av<-as.data.frame(relabun_extcont_av)
+row.names(relabun_extcont_av)<-relabun_extcont_av[,1] #col one is Source.Descrip
+relabun_extcont_av<-relabun_extcont_av[,-1]
+colnames(relabun_extcont_av)<-taxa_list
+relabun_extcont_av[] <- lapply(relabun_extcont_av, function(x) {
     as.numeric(as.character(x))})
 
 #add expected rel abundance
 temp<-data.frame()
-for (a in rownames(relabun_seqcont_av)){
+for (a in control_type){
  for (b in taxa_list){
   temp[paste(a,"_exp",sep=""),b]<-as.numeric(as.character(expected_taxa_Genus[b,a]))
  }
@@ -323,9 +364,47 @@ for (a in rownames(relabun_seqcont_av)){
 temp[temp=="A" ]=0 #replace A's with 0
 temp[is.na(temp)]=0 #replace A's with 0
 temp<-as.data.frame(temp)
-relabun_seqcont_av<-rbind(relabun_seqcont_av,temp)
+relabun_extcont_av<-rbind(relabun_extcont_av,temp)
 
-write.csv(relabun_seqcont_av,paste(output_location,"Data\\relabun_seqcont_av.csv",sep=""))
+write.csv(relabun_extcont_av,paste(output_location,"Data\\relabun_extcont_av.csv",sep=""))
+
+
+
+relabun_subset<-function(){
+ 
+ #Calculate averages - Across all kits/homog
+ relabun_extcont_av<-sort(unique(relabun_extcont$Source.Descrip))
+ 
+ for (a in taxa_list){
+  
+  temp<-aggregate(relabun_extcont[,a], list(relabun_extcont$Source.Descrip), FUN = function(x) mean(as.numeric(as.character(x))))
+  relabun_extcont_av<-cbind(relabun_extcont_av,temp[,2])
+ }
+ 
+ #Convert to df, add taxa as colnames
+ relabun_extcont_av<-as.data.frame(relabun_extcont_av)
+ row.names(relabun_extcont_av)<-relabun_extcont_av[,1] #col one is Source.Descrip
+ relabun_extcont_av<-relabun_extcont_av[,-1]
+ colnames(relabun_extcont_av)<-taxa_list
+ relabun_extcont_av[] <- lapply(relabun_extcont_av, function(x) {
+     as.numeric(as.character(x))})
+ 
+ #add expected rel abundance
+ temp<-data.frame()
+ for (a in control_type){
+  for (b in taxa_list){
+   temp[paste(a,"_exp",sep=""),b]<-as.numeric(as.character(expected_taxa_Genus[b,a]))
+  }
+ }
+ 
+ temp[temp=="A" ]=0 #replace A's with 0
+ temp[is.na(temp)]=0 #replace A's with 0
+ temp<-as.data.frame(temp)
+ relabun_extcont_av<-rbind(relabun_extcont_av,temp)
+ 
+ write.csv(relabun_extcont_av,paste(output_location,"Data\\relabun_extcont_av.csv",sep=""))
+}
+
 ```
 
 
