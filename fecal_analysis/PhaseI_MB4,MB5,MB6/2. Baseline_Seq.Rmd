@@ -38,6 +38,7 @@ library(tidyverse)
 library(tidyr)
 library(tm)
 library(vegan)
+library(Metrics)
 ```
 
 #Analysis
@@ -361,4 +362,38 @@ filtcat<-"Source.Descrip"
 remove(phyobj,taxa_level,filtcat)
 remove(temp_phyobj,taxaPValues,environments,abundances,chlamydiae.families,taxaPValues,family.AGBH)
 
+```
+
+Error rates
+```{r}
+#Determine the Error (r.m.s. for each control)
+error_relabun<-function(df,outputname){
+ tmp <- data.frame()
+ 
+ #For each expected control
+ for(a in row.names(df)){
+  if((grepl("_exp",a))){ #only pull the expected sample names
+   
+   #For each genera
+   for (b in colnames(df)){
+    exp_val<-df[a,b]
+    obs_sample <- gsub("_exp","",a)
+    obs_val<-df[obs_sample,b]
+    
+     #only include expected control values
+     if(exp_val!=0){
+      tmp[obs_sample,b]<-rmse(obs_val,exp_val)
+     }
+   }
+  }
+  
+  
+ }
+ tmp[is.na(tmp)]=0 #replace na's with 0
+ tmp<-cbind(tmp,rowMeans(tmp))
+ 
+ write.csv(tmp,paste(output_location,"\\Data\\",outputname,"_seqcontrols.csv",sep=""))
+}
+
+error_relabun(relabun_seqcont_av,"errorrate")
 ```

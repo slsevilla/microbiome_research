@@ -33,123 +33,71 @@ library(tidyverse)
 
 #Analysis
 ###############
-#1. Taxonomy Reference - Expected frequencies
 ```{r}
-#Read in controls taxonomy file, grouped by Genus
-control_expect <- read.table("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Controls\\Taxonomy\\Taxonomy_Genus_2019.txt",sep="\t",header=TRUE)
-rownames(control_expect) <- unique(control_expect[,"Genus"])
-```
+plot_diversity<-function(phyobject,filter,subfeat){
+ p<-plot_richness(phyobject, x=filter) + geom_boxplot()
+ file_name =paste(output_location,"Graphs\\alphadiv_",filter,"_",subfeat,".tiff",sep="")
+ tiff(file_name, width=800)
+ print(p)
+ dev.off()
+} 
 
-#2. Load OTU and metadata tables
-```{r}
-#Create location link
-project_location= paste("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\",project_name,sep="")
+subset_list<-c("Study")
+physeq_study<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
 
-#Read in database with variable information
-metadata_baseline <- read.table(paste(project_location,"\\Output\\R\\OTUs\\",manifest_name,sep=""),sep=",",header= TRUE)
-rownames(metadata_baseline)<-metadata_baseline$X
-metadata_baseline<-metadata_baseline[-1]
+subset_list<-c("TissueLyzer","Vertical","Plate Adaptor")
+physeq_study<-subset_samples(physeq_study, Homo.Method %in% subset_list)
 
-otu_baseline_complete <- read.table(paste(project_location,"\\Output\\R\\OTUs\\",otu_name,sep=""),sep=",",header= TRUE)
-rownames(otu_baseline_complete)<-otu_baseline_complete$X
-otu_baseline_complete<-otu_baseline_complete[-1]
+subset_list<-c("DZ35298","Study")
+physeq_study<-subset_samples(physeq_study, Source.Descrip %in% subset_list)
 
-rownames(metadata_baseline)==rownames(otu_baseline_complete) #Should be true
-```
+alpha_plots<-c("Ext.Kit")
 
-#3. OTU Counts by sample
-Read in OTU information, and determine total OTUs
-```{r}
-genus_found<-colnames(otu_baseline_complete)
-samplelist_study<-rownames(otu_baseline_complete)
-
-#For each sample, determine the total read counts
-for (a in samplelist_study){
- #Set sum to 0
- sum=0
- 
- #For each genus
- for (b in genus_found){
-  
-  #Add the number of counts together
-  sum <- otu_baseline_complete[a,b] + sum
- }
- 
- #When complete, push the sum to a new "Total_OTUs" row
- otu_baseline_complete[a,"Total_OTUs"] <- sum
+for (a in alpha_plots){
+ plot_diversity(physeq_study,a,"studyonly_std")
 }
 
-write.csv(otu_baseline_complete,"test.csv")
-```
 
-#4. Relative Abundance  - Ext Controls
-```{r}
-relabun_baseline_study<-data.frame()
+subset_list<-c("Study")
+physeq_study<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
 
-#Complete Relative Abundance
-samplelist_study<-rownames(otu_baseline_complete)
-genus_list <- colnames(otu_baseline_complete)
-genus_list<-genus_list[-(length(genus_list))]
-genus_list<-append(genus_list,rownames(control_expect))
-kit_list <- unique(metadata_baseline$Ext.Kit)
+subset_list<-c("MagAttract PowerMicrobiome Kit")
+physeq_study<-subset_samples(physeq_study, Ext.Kit %in% subset_list)
 
-for (a in kit_list){
- for (b in samplelist_study){
-  for (c in genus_list){
-   
-   relabun <- otu_baseline_complete[b,c]
-   
-   if(!(is.na(relabun) || is.null(relabun) || relabun==0)){
-    relabun_baseline_study[b,"Source.Descrip"]<-as.character(metadata_baseline[b,"Source.Descrip"])
-    relabun_baseline_study[b,"Ext.Kit"]<-as.character(metadata_baseline[b,"Ext.Kit"])
-    relabun_baseline_study[b,c] <- otu_baseline_complete[b,c]/otu_baseline_complete[b,"Total_OTUs"]
-    relabun_baseline_study[b,"Homo.Method"] <- metadata_baseline[b,"Homo.Method"]
-   }
-  }
- }
+subset_list<-c("DZ35298","Study")
+physeq_study<-subset_samples(physeq_study, Source.Descrip %in% subset_list)
+
+unique(sample_data(physeq_study)$Homo.Method)
+unique(sample_data(physeq_study)$Sample.Type)
+
+
+alpha_plots<-c("Homo.Method")
+
+for (a in alpha_plots){
+ plot_diversity(physeq_study,a,"studyonly_mbexamp")
 }
-
-relabun_baseline_study[is.na(relabun_baseline_study)]=0 #replace na's with 0
-relabun_baseline_study[relabun_baseline_study=="A"]=0 #replace A's with 0
-write.csv(relabun_baseline_study,paste(project_location,"\\Output\\R\\Data\\Baseline\\relabun_baseline_study.csv",sep=""))
-```
 
 #PCOA plots
-```{r}
-otu<-otu_table(physeq_filt_study)
-tax<-tax_table(physeq_filt_study)
-random_tree<-random_tree<-rtree(ntaxa(physeq_filt_study), rooted=TRUE, tip.label=taxa_names(physeq_filt_study))
-sdata<- sample_data(metadata_baseline)
-temp<-phyloseq(otu,tax,sdata,random_tree)
+subset_list<-c("Study")
+physeq_study<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+subset_list<-c("TissueLyzer","Vertical","Plate Adaptor")
+physeq_study<-subset_samples(physeq_study, Homo.Method %in% subset_list)
+subset_list<-c("DZ35298","Study")
+physeq_study<-subset_samples(physeq_study, Source.Descrip %in% subset_list)
+
+
 
 #######################
 ## Bray-Curtis
 #######################
 physeq_pcoa <- ordinate(
-  physeq = temp, 
+  physeq = physeq_study, 
   method = "PCoA", 
   distance = "bray"
 )
-## Plot by Source.Descrip
-p<- plot_ordination(
-  physeq = temp,
-  ordination = physeq_pcoa,
-  color = "Source.Descrip",
-  title = "PCoA of Source Descrip (Bray-Curtis)"
-) + 
-  scale_color_manual(values = c("#a65628", "red", "#ffae19",
-    "#4daf4a", "#1919ff", "darkorchid3", "magenta")
-  ) +
-  geom_point(aes(color = Source.Descrip), alpha = 0.7, size = 6) +
-  geom_point(colour = "grey90", size = 1.5)
-file_name =(paste(project_location,"\\Output\\R\\Graphs\\Baseline\\bray_baseline_study_sourcedescrip.tiff"))
-tiff(file_name, width=800)
-print(p)
-dev.off()
-
 ## Plot by Ext.Kit
 p<- plot_ordination(
-  physeq = temp,
+  physeq = physeq_study,
   ordination = physeq_pcoa,
   color = "Ext.Kit",
   title = "PCoA of Ext.Kit (Bray-Curtis)"
@@ -159,7 +107,24 @@ p<- plot_ordination(
   ) +
   geom_point(aes(color = Ext.Kit), alpha = 0.7, size = 6) +
   geom_point(colour = "grey90", size = 1.5)
-file_name =(paste(project_location,"\\Output\\R\\Data\\Baseline\\bray_baseline_study_extkit.tiff"))
+file_name =paste(output_location,"Graphs\\bray_baseline_study_study_std.tiff",sep="")
+tiff(file_name, width=800)
+print(p)
+dev.off()
+
+## Plot by Source.Descrip
+p<- plot_ordination(
+  physeq = physeq_study,
+  ordination = physeq_pcoa,
+  color = "Source.Descrip",
+  title = "PCoA of Source.Descrip (Bray-Curtis)"
+) + 
+  scale_color_manual(values = c("#a65628", "red", "#ffae19",
+    "#4daf4a", "#1919ff", "darkorchid3", "magenta")
+  ) +
+  geom_point(aes(color = Source.Descrip), alpha = 0.7, size = 6) +
+  geom_point(colour = "grey90", size = 1.5)
+file_name =paste(output_location,"Graphs\\bray_baseline_study_std_source.tiff",sep="")
 tiff(file_name, width=800)
 print(p)
 dev.off()
