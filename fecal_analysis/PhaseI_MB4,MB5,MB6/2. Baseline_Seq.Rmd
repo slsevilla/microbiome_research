@@ -10,7 +10,7 @@ editor_options:
 output_location<-c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_SeqVariation\\")
 
 taxa_levels<-c("Genus")
-reference_db<-"greengenes"
+reference_db<-c("greengenes")
 
 manifest_name<-paste("metadata_",taxa_levels,"_",reference_db,"_seqcontrol.csv",sep="")
 taxa_file<-paste("taxa_",taxa_levels,"_",reference_db,"_seqcontrol.csv",sep="")
@@ -57,7 +57,7 @@ for (a in taxa_levels){
 
 ```
 
-#Load OTU and metadata tables
+#Taxa and metadata tables
 ```{r}
 for(a in taxa_levels){
  for (b in reference_db){
@@ -78,6 +78,13 @@ for(a in taxa_levels){
   
   assign(taxa_db_name,temp)
   remove(temp)
+  
+  temp <- read.table(paste(output_location,"OTUs\\otu_table.csv",sep=""),sep=",",header= TRUE)
+  rownames(temp)<-temp$X
+  temp<-temp[-1]
+  
+  assign("otus",temp)
+  remove(temp)
  }
 }
 ```
@@ -89,6 +96,7 @@ for(a in taxa_levels){
 
 subset_list<-c("Seq.Control")
 physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+
 ```
 
 #OTU Counts by sample
@@ -103,8 +111,10 @@ taxa_Genus_greengenes$Total_OTUs <- rowSums(taxa_Genus_greengenes)
 tp_fp_fn_samplelevel<- function(output,db,tl,ct){
  sample_list<-intersect(rownames(get(paste("taxa",tl,db,sep="_"))),rownames(subset(get(paste("metadata",tl,db,sep="_")),Source.Descrip==ct)))
  exp_taxa_list<-rownames(get(paste("expected_taxa",tl,sep="_"))[ get(paste("expected_taxa",tl,sep="_"))[[ct]] !='A' , ])
+ 
  unexp_taxa_list<-setdiff(colnames(get(paste("taxa",tl,db,sep="_"))),exp_taxa_list)
- unexp_taxa_list<-unexp_taxa_list[-length(unexp_taxa_list)] #Remove Total_OTUs column
+ remove_list<-c("Total_OTUs","Unknown","HigherGenus","HigherFamily") #Remove Total_OTUs column, Higher Genera col, Unknown
+ unexp_taxa_list <- unexp_taxa_list[! unexp_taxa_list %in% remove_list ]
  
  for (a in sample_list){
   fp=0
@@ -309,12 +319,11 @@ plot_controls("PCoA","unifrac")
 ```{r}
 #From PAPER example
 #https://www.rdocumentation.org/packages/structSSI/versions/1.1.1/topics/Adaptive.GBH
-relabun_sig<-function(phyobj,taxa_level,filtcat){
+relabun_sig<-function(phyobj,taxa_level,environments,ctname){
  temp_phyobj<- prune_taxa(taxa_sums(phyobj)>0,phyobj) #remove taxa that have no samples with reads - meant for subsetted samples
  
  taxaPValues <- numeric(length = ntaxa(temp_phyobj))
  names(taxaPValues) <- taxa_names(temp_phyobj)
- environments <- sample_data(temp_phyobj)$Source.Descrip
  abundances <- otu_table(temp_phyobj)
  
  for (taxaIndex in 1:ntaxa(temp_phyobj)) {
@@ -326,41 +335,70 @@ relabun_sig<-function(phyobj,taxa_level,filtcat){
  chlamydiae.families <- na.omit(tax_table(temp_phyobj)[, taxa_level])
  taxaPValues <- taxaPValues[taxa_names(chlamydiae.families)]
  family.AGBH <- Adaptive.GBH(unadj.p = taxaPValues, group.index = matrix(chlamydiae.families), method = "lsl")
- summary(family.AGBH)
  
+ write.csv(family.AGBH@p.vals,paste(output_location,"\\Data\\","ABGH_",ctname,".csv",sep=""))
+ # tiff(paste(output_location,"\\Graphs\\","ABGH_",ctname,".tiff",sep=""),compression="lzw")
+ # grid.draw(plot(family.AGBH,aes(col=group,shape=type)))
+ # dev.off()
+ 
+ #Sig plotting
  sub.AGBH<-family.AGBH@p.vals
  sub.AGBH<-sub.AGBH[grepl("g__", sub.AGBH$group),]#remove all not at taxa level
  #sub.AGBH<-sub.AGBH[grepl("\\*",sub.AGBH$adj.significance),] #remove all not at 0.05 sig
- sub.AGBH<-subset(sub.AGBH,sub.AGBH$adjp<.5)
+ sub.AGBH<-subset(sub.AGBH,sub.AGBH$adjp<.05)
 
- #Remove sig col
- sub.AGBH<-sub.AGBH[-4]
- melt.AGBH <- melt(sub.AGBH, id.vars="group")
-
- ggplot(melt.AGBH, aes(1:nrow(melt.AGBH), value, col=variable,shape=group)) + 
-  geom_point(size=5) +
-  ylab("Adjusted p-values") +
-  title("GBH Adjustment") +
-  scale_x_discrete(name ="Hypothesis sorted by adjusted p-values", 
-                    limits=c(1:nrow(melt.AGBH)))
+ #If there are sig results, plot separately
+ if(nrow(sub.AGBH>0)){
+  #Remove sig col
+  sub.AGBH<-sub.AGBH[-4]
+  melt.AGBH <- melt(sub.AGBH, id.vars="group")
+  
+  p1<-ggplot(melt.AGBH, aes(1:nrow(melt.AGBH), value, col=group,shape=variable)) + 
+   geom_point(size=5) +
+   ylab("Adjusted p-values") +
+   scale_x_discrete(name ="Hypothesis sorted by adjusted p-values", 
+                     limits=c(1:nrow(melt.AGBH)))
+  
+  tiff(paste(output_location,"\\Graphs\\","ABGH_sig_",ctname,".tiff",sep=""),compression="lzw")
+  grid.draw(p1)
+  dev.off()
+ }
  
- 
- chl.tree <- get.edgelist(as.igraph(phy_tree(temp_phyobj)))
- chl.pval <- treePValues(chl.tree, abundances, environments)
- 
+ # taxa_names(temp_phyobj)<-1:length(phy_tree(temp_phyobj)$tip.label) #change OTU names to numbers
+ # phy_tree(temp_phyobj)$node.label<-1:length(phy_tree(temp_phyobj)$node.label) #change node labels to numbers
+ # chl.tree <- get.edgelist(as.igraph(phy_tree(temp_phyobj)))
+ # chl.pval <- treePValues(chl.tree, abundances, environments)
 }
 
-subset_list<-c("Seq.Control")
-physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
 
-relabun_sig(physeq_scale_sub,"Genus","Source.Descrip")
-
-#Testing
-phyobj<-physeq_scale_sub
+Testing
 taxa_level<-c("Genus")
-filtcat<-"Source.Descrip"
-remove(phyobj,taxa_level,filtcat)
-remove(temp_phyobj,taxaPValues,environments,abundances,chlamydiae.families,taxaPValues,family.AGBH)
+a<-c("MSA1000","MSA1001")
+subset_list<-a
+phyobj<-subset_samples(physeq_scale, Source.Descrip %in% subset_list)
+environments <- sample_data(physeq_scale_sub)$Run.ID
+remove(taxa_level,a, subset_list, phyobj, environments, temp_phyobj,taxaPValues,environments,abundances,chlamydiae.families,taxaPValues,family.AGBH)
+
+subset_list<-unique(sample_data(physeq_scale_sub)$Source.Descrip) #List of all controls
+
+#Compare taxa between runs
+for (a in subset_list){
+ exp_taxa_list<-rownames(get(paste("expected_taxa",taxa_levels,sep="_"))[ get(paste("expected_taxa",taxa_levels,sep="_"))[[a]] !='A' , ])
+ physeq_temp<-subset_samples(physeq_scale_sub, Source.Descrip %in% a)
+ 
+ i=1
+ for (b in exp_taxa_list){
+  newname<-paste(" g__",b,sep="")
+  exp_taxa_list[i]<-newname
+  i=i+1
+ }
+ 
+ physeq_temp<-subset_taxa(physeq_temp, Genus %in% exp_taxa_list)
+ environments <- sample_data(physeq_temp)$Run.ID
+ relabun_sig(physeq_temp,"Genus",environments,a)
+}
+
+
 
 ```
 
