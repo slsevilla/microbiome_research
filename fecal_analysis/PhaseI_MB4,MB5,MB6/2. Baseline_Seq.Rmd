@@ -363,11 +363,6 @@ relabun_sig<-function(phyobj,taxa_level,environments,ctname){
   grid.draw(p1)
   dev.off()
  }
- 
- # taxa_names(temp_phyobj)<-1:length(phy_tree(temp_phyobj)$tip.label) #change OTU names to numbers
- # phy_tree(temp_phyobj)$node.label<-1:length(phy_tree(temp_phyobj)$node.label) #change node labels to numbers
- # chl.tree <- get.edgelist(as.igraph(phy_tree(temp_phyobj)))
- # chl.pval <- treePValues(chl.tree, abundances, environments)
 }
 
 
