@@ -655,16 +655,16 @@ physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
 # unique(sample_data(physeq_scale_sub)$Reciept)
 
 #Subset to create homo ext only
-# subset_list<-c("Ext.Control")
-# physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
-# subset_list<-unique((sample_data(physeq_scale_sub)$Reciept))
-# subset_list<-subset_list[23:34]
-# physeq_scale_sub<-subset_samples(physeq_scale, Reciept %in% subset_list)
-# unique(sample_data(physeq_scale_sub)$Reciept)
+subset_list<-c("Ext.Control")
+physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+subset_list<-unique((sample_data(physeq_scale_sub)$Reciept))
+subset_list<-subset_list[23:34]
+physeq_scale_sub<-subset_samples(physeq_scale, Reciept %in% subset_list)
+unique(sample_data(physeq_scale_sub)$Reciept)
 
 #specify taxa levels to use
 taxa_levels<-c("Genus","Family")
-file_name<-c("seqcontrol") #all, seqcontrol, extcontrol_std, extcontrol_hmo, blanks, replicate
+file_name<-c("extcontrol_hmo") #all, seqcontrol, extcontrol_std, extcontrol_hmo, blanks, replicate
 
 #Run protocol
 for (a in taxa_levels){
