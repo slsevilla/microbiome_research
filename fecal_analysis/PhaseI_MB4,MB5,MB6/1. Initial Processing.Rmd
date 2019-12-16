@@ -8,14 +8,14 @@ editor_options:
 #To Update
 ```{r}
 parent_dir = c("T:\\DCEG\\Projects\\Microbiome\\CGR_MB\\MicroBiome\\")
-project_name=c("Project_NP0084_MB4\\Complete_run\\MB4,MB5,MBpt6","Project_NP0084_MB4\\Complete_run\\MB6")
-manifest_name=c("NP0084-MB4_08_29_19_metadata.txt","NP0084-MB6.txt")
+project_name=c("Project_NP0084_MB4\\DB_Variations")
+manifest_name=c("NP0084-NP0084-MB4_08_29_19_metadata_seq.txt")
 
-output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Complete\\")
+output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_DB_Seq2\\")
 
 sample_depth=100000
-reference_db="greengenes"
-
+reference_db=c("silva")
+taxa_levels=c("Family","Genus")
 ```
 
 #Load required libraries

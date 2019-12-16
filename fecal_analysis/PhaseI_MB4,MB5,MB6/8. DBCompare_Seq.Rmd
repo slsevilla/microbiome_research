@@ -54,7 +54,6 @@ project_name=c("Project_NP0084_MB4\\")
 run_list=c("DB_Variations")
 manifest_name=c("NP0084-MB4_08_29_19_metadata_seq.txt")
 
-output_location_sto=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Stochastic\\")
 output_location_seq=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_DB_Seq\\")
 
 sample_depth=100000
@@ -67,7 +66,6 @@ control_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimiz
 output_run_list=c("R_Run1")
 taxa_levels=c("Family","Genus")
 ```
-
 
 ############### Adapted from 1. Initital Processing code for fecal analysis
 #Directory Creation
@@ -423,13 +421,14 @@ for (a in taxa_levels){
 }
 ```
 
-#Observed to Expected Counts
+#Observed to Expected Counts - Sample Level
 ```{r}
-tp_fp_fn_samplelevel<- function(db,tl,ct){
- sample_list<-intersect(rownames(get(paste("taxa",tl,db,sep="_"))),rownames(subset(metadata,Source.Descrip==ct)))
+tp_fp_fn_samplelevel<- function(output,db,tl,ct){
+ sample_list<-intersect(rownames(get(paste("taxa",tl,db,sep="_"))),rownames(subset(get(paste("metadata",sep="_")),Source.Descrip==ct)))
  exp_taxa_list<-rownames(get(paste("expected_taxa",tl,sep="_"))[ get(paste("expected_taxa",tl,sep="_"))[[ct]] !='A' , ])
  unexp_taxa_list<-setdiff(colnames(get(paste("taxa",tl,db,sep="_"))),exp_taxa_list)
-
+ unexp_taxa_list<-unexp_taxa_list[-length(unexp_taxa_list)] #Remove Total_OTUs column
+ 
  for (a in sample_list){
   fp=0
   fn=0
@@ -461,31 +460,59 @@ tp_fp_fn_samplelevel<- function(db,tl,ct){
    }
   }
   
-  temp[a,"ControlType"]<-ct
-  temp[a,paste("TP",db,tl,sep="_")]<-tp
-  temp[a,paste("FP",db,tl,sep="_")]<-fp
-  temp[a,paste("FN",db,tl,sep="_")]<-fn
-  temp[a,paste("TAR",db,tl,sep="_")]<-tp/(tp+fp)
-  temp[a,paste("TDR",db,tl,sep="_")]<-tp/(tp+fn)
+  output[a,"ControlType"]<-ct
+  output[a,"Expected"]<-length(exp_taxa_list)
+  output[a,paste("TP",db,tl,sep="_")]<-tp
+  output[a,paste("FP",db,tl,sep="_")]<-fp
+  output[a,paste("FN",db,tl,sep="_")]<-fn
+  output[a,paste("TAR",db,tl,sep="_")]<-tp/(tp+fp)
+  output[a,paste("TDR",db,tl,sep="_")]<-tp/(tp+fn)
+  output[a,paste("F1",db,tl,sep="_")]<-2*((tp/(tp+fp))*(tp/(tp+fn)))/((tp/(tp+fp))+(tp/(tp+fn)))
  }
  
- return(temp)
+ return(output)
 }
 
-temp<-data.frame()
-
+#Determine which controls
 control_type<-c("MSA1000","MSA1001","MSA1002","MSA1003","D6305","D6306","D6311")
 
+tar_tdr<-data.frame()
 for(a in reference_db){
  for (b in taxa_levels){
   for (c in control_type){
-   temp<-tp_fp_fn_samplelevel(a,b,c)
+   tar_tdr<-tp_fp_fn_samplelevel(tar_tdr,a,b,c)
   }
  }
 }
 
-write.csv(temp,paste(output_location_seq,"\\Taxa\\Taxonomy_tar_tdr.csv",sep=""))
+write.csv(tar_tdr,paste(output_location_seq,"\\Taxa\\Taxonomy_tar_tdr.csv",sep=""))
 
-remove(temp)
+```
+
+#Observed to Expected Counts - Control Type Level
+```{r}
+tp_fp_fn_contlevel<- function(output,db,tl,ct){
+ calcs<-c("TAR","TDR","F1")
+ 
+ for (a in calcs){
+  colselected<-paste(a,db,tl,sep="_")
+  output[ct,colselected]<-with(tar_tdr,mean(get(colselected)[ControlType==ct]))
+ }
+ return(output)
+}
+
+tar_tdr_av<-data.frame()
+for (a in reference_db){
+ for (b in taxa_levels){
+  for (c in control_type){
+   tar_tdr_av[c,"Control"]<-c
+   
+   tar_tdr_av<-tp_fp_fn_contlevel(tar_tdr_av,a,b,c)
+  }
+ }
+}
+
+write.csv(tar_tdr_av,paste(output_location_seq,"\\Taxa\\Taxonomy_tar_tdr_av.csv",sep=""))
+
 
 ```
