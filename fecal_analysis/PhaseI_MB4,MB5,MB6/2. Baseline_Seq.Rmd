@@ -335,44 +335,44 @@ relabun_sig<-function(phyobj,taxa_level,environments,ctname){
  chlamydiae.families <- na.omit(tax_table(temp_phyobj)[, taxa_level])
  taxaPValues <- taxaPValues[taxa_names(chlamydiae.families)]
  family.AGBH <- Adaptive.GBH(unadj.p = taxaPValues, group.index = matrix(chlamydiae.families), method = "lsl")
- 
  write.csv(family.AGBH@p.vals,paste(output_location,"\\Data\\","ABGH_",ctname,".csv",sep=""))
- # tiff(paste(output_location,"\\Graphs\\","ABGH_",ctname,".tiff",sep=""),compression="lzw")
- # grid.draw(plot(family.AGBH,aes(col=group,shape=type)))
- # dev.off()
  
- #Sig plotting
+ #Plotting
  sub.AGBH<-family.AGBH@p.vals
- sub.AGBH<-sub.AGBH[grepl("g__", sub.AGBH$group),]#remove all not at taxa level
- #sub.AGBH<-sub.AGBH[grepl("\\*",sub.AGBH$adj.significance),] #remove all not at 0.05 sig
+ c<-sub.AGBH[grepl("g__", sub.AGBH$group),]#remove all not at taxa level
+ plot_AGBH(sub.AGBH,"all",ctname)
+ 
+ #Sig Plotting
  sub.AGBH<-subset(sub.AGBH,sub.AGBH$adjp<.05)
-
  #If there are sig results, plot separately
- if(nrow(sub.AGBH>0)){
-  #Remove sig col
-  sub.AGBH<-sub.AGBH[-4]
-  melt.AGBH <- melt(sub.AGBH, id.vars="group")
-  
-  p1<-ggplot(melt.AGBH, aes(1:nrow(melt.AGBH), value, col=group,shape=variable)) + 
-   geom_point(size=5) +
-   ylab("Adjusted p-values") +
-   scale_x_discrete(name ="Hypothesis sorted by adjusted p-values", 
-                     limits=c(1:nrow(melt.AGBH)))
-  
-  tiff(paste(output_location,"\\Graphs\\","ABGH_sig_",ctname,".tiff",sep=""),compression="lzw")
-  grid.draw(p1)
-  dev.off()
+ if(nrow(sub.AGBH)>0){
+  plot_AGBH(sub.AGBH,"sig",ctname)
  }
 }
 
+plot_AGBH<-function(datasub,name,ct){
+  sub.AGBH<-datasub[-4] #Remove sig col
+  sub.AGBH<-sub.AGBH[-1] #remove unadjp
+  melt.AGBH <- melt(sub.AGBH, id.vars="group")
+  
+  p1<-ggplot(melt.AGBH, aes(1:nrow(melt.AGBH), value, col=group,shape=variable)) + 
+   geom_point(size=2) +
+   ylab("Adjusted p-values") +
+   scale_x_discrete(name ="Hypothesis sorted by adjusted p-values", 
+                     limits=c(1:nrow(melt.AGBH))) + 
+   theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  tiff(paste(output_location,"\\Graphs\\","ABGH_",name,"_",ct,".tiff",sep=""),compression="lzw")
+  grid.draw(p1)
+  dev.off()
+ }
 
-Testing
-taxa_level<-c("Genus")
-a<-c("MSA1000","MSA1001")
-subset_list<-a
-phyobj<-subset_samples(physeq_scale, Source.Descrip %in% subset_list)
-environments <- sample_data(physeq_scale_sub)$Run.ID
-remove(taxa_level,a, subset_list, phyobj, environments, temp_phyobj,taxaPValues,environments,abundances,chlamydiae.families,taxaPValues,family.AGBH)
+# Testing
+# taxa_level<-c("Genus")
+# a<-c("MSA1000","MSA1001")
+# subset_list<-unique(sample_data(physeq_scale_sub)$Source.Descrip) #List of all controls
+# phyobj<-subset_samples(physeq_scale, Source.Descrip %in% subset_list)
+# environments <- sample_data(physeq_scale_sub)$Run.ID
+# remove(taxa_level,a, subset_list, phyobj, environments, temp_phyobj,taxaPValues,environments,abundances,chlamydiae.families,taxaPValues,family.AGBH)
 
 subset_list<-unique(sample_data(physeq_scale_sub)$Source.Descrip) #List of all controls
 
@@ -393,11 +393,9 @@ for (a in subset_list){
  relabun_sig(physeq_temp,"Genus",environments,a)
 }
 
-
-
 ```
 
-Error rates
+#Error rates
 ```{r}
 #Determine the Error (r.m.s. for each control)
 error_relabun<-function(df,outputname){
@@ -429,4 +427,22 @@ error_relabun<-function(df,outputname){
 }
 
 error_relabun(relabun_seqcont_av,"errorrate")
+```
+
+#Alpha Diversity - Run ID
+```{r}
+plot_diversity<-function(phyobject,filter,subfeat){
+ p<-plot_richness(phyobject, x=filter) + geom_boxplot()
+ file_name =paste(output_location,"Graphs\\alphadiv_",filter,"_",subfeat,".tiff",sep="")
+ tiff(file_name, width=800)
+ print(p)
+ dev.off()
+} 
+
+alpha_plots<-c("Source.Descrip","Run.ID")
+
+for (a in alpha_plots){
+ plot_diversity(physeq_scale_sub,a,"seq")
+}
+
 ```
