@@ -7,12 +7,12 @@ editor_options:
 
 #To Update
 ```{r}
-output_location<-c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_ExtVariation\\")
+output_location<-c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Complete\\")
 
 taxa_levels<-c("Genus")
 reference_db<-"greengenes"
 
-file_ext<-"_extcontrol_hmo.csv"
+file_ext<-"_extcontrol_std.csv"
 
 ext_choice<-"STD"
 
@@ -101,7 +101,7 @@ for(a in taxa_levels){
 
 #Subset to create standard ext only
 subset_list<-c("Ext.Control") 
-physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+physeq_scale_sub<-subset_samples(physeq_filt, Sample.Type %in% subset_list)
  
 if(ext_choice=="STD"){
 
