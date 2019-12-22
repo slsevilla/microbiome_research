@@ -446,3 +446,37 @@ for (a in alpha_plots){
 }
 
 ```
+
+
+#Beta diversity
+```{r}
+#PCOA
+plot_beta<-function(phyobj,type,dist_meas,colby){
+ ordu = ordinate(phyobj, type, dist_meas, weighted=TRUE)
+ p1<-plot_ordination(phyobj, ordu, color=colby,title=paste("Beta Div (", type,") by ", colby,sep=""))
+ 
+ allGroupsColors<- c("grey0")
+ allGroupsColors<-append(allGroupsColors,brewer.pal(n = 9, name = "Set1"))
+ allGroupsColors<-append(allGroupsColors,brewer.pal(n = 12, name = "Paired"))
+
+ p1<-p1 + geom_point(size = 4) + scale_color_manual(values = allGroupsColors)
+ p1
+ 
+ tiff(paste(output_location,"\\Graphs\\betadiv_",type,"_",colby,".tiff",sep=""))
+ grid.draw(p1)
+ dev.off()
+ 
+}
+
+plot_beta(physeq_scale_sub,"PCoA","unifrac","Run.ID")
+plot_beta(physeq_scale_sub,"PCoA","unifrac","Source.Descrip")
+
+#Jaccard
+#plot_net(physeq_scale_sub, maxdist = 0.4,color="Source.Descrip",shape="Run.ID")
+jg = make_network(physeq_scale_sub, max.dist=0.3)
+p1=plot_network(jg, physeq_scale_sub, color="Source.Descrip",shape="Run.ID",label="Source.Descrip")
+df
+tiff(paste(output_location,"\\Graphs\jaccard_seq.tiff",sep=""))
+grid.draw(p1)
+dev.off()```
+
