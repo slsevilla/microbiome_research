@@ -472,11 +472,11 @@ plot_beta(physeq_scale_sub,"PCoA","unifrac","Run.ID")
 plot_beta(physeq_scale_sub,"PCoA","unifrac","Source.Descrip")
 
 #Jaccard
+#http://joey711.github.io/phyloseq/plot_network-examples
 #plot_net(physeq_scale_sub, maxdist = 0.4,color="Source.Descrip",shape="Run.ID")
 jg = make_network(physeq_scale_sub, max.dist=0.3)
-p1=plot_network(jg, physeq_scale_sub, color="Source.Descrip",shape="Run.ID",label="Source.Descrip")
-df
-tiff(paste(output_location,"\\Graphs\jaccard_seq.tiff",sep=""))
-grid.draw(p1)
-dev.off()```
+png(paste(output_location,"\\Graphs\\betadiv_jaccard.png",sep=""),width=800,height=800)
+plot_network(jg, physeq_scale_sub, color="Source.Descrip",shape="Run.ID",label="Source.Descrip",line_weight = 2)
+dev.off()
+```
 
