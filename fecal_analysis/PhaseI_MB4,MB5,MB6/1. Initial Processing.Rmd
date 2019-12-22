@@ -7,11 +7,11 @@ editor_options:
 
 #To Update
 ```{r}
-parent_dir = c("T:\\DCEG\\Projects\\MicroBiome\\Analysis\\")
-project_name=c("Project_NP0084_MB4\\Stochastic_Run1")
-manifest_name=c("NP0084-MB4_08_29_19_metadata.txt")
+parent_dir = c("T:\\DCEG\\Projects\\MicroBiome\\Analysis\\Project_NP0084_MB4\\")
+project_name=c("Complete_Run\\MB4,MB5,MBpt6","Complete_Run\\MB6")
+manifest_name=c("NP0084-MB4_08_29_19_metadata.txt", "NP0084-MB6.txt")
 
-output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_SeqVariation\\")
+output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_ExtVariation\\")
 
 sample_depth=100000
 reference_db=c("greengenes")
@@ -60,6 +60,7 @@ for(a in dir_create){
 ```{r}
 count=1
 for (a in project_name){
+ print (a)
  data_location = paste(parent_dir,a,sep="")
 
  #Read OTUS
@@ -72,7 +73,7 @@ for (a in project_name){
  taxonomy<-read_qza(paste(data_location,"\\Output\\qza_results\\taxonomy_qza_results\\taxonomy_",reference_db,".qza",sep=""))
  
  #Edit table
- tax_table<-do.call(rbind, strsplit(as.character(taxonomy$data$Taxon), ";"))
+ tax_table<-do.call(rbind, strsplit(as.character(taxonomy$data$Taxon), "; "))
    colnames(tax_table)<-c("Kingdom","Phylum","Class","Order","Family","Genus","Species")
    rownames(tax_table)<-taxonomy$data$Feature.ID
  
@@ -87,6 +88,7 @@ for (a in project_name){
  count=count+1
 }
 ```
+
 #Filter samples
 ```{r}
 count=1
@@ -494,7 +496,7 @@ rare_curves(physeq_scale,"Run.ID","Rarecurve_PostFiltering")
 
 #Sample Type Specific - Controls
 unique(sample_data(physeq_scale)$Sample.Type)
-subset_list<-c("Seq.Control") #"Ext.Control"
+subset_list<-c("Ext.Control") #"Ext.Control"
 
 physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
 
