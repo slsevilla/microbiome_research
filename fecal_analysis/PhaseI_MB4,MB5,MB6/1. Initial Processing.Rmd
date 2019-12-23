@@ -414,7 +414,7 @@ colnames(sample_sum_df)
   geom_histogram(binwidth = 2500) +
   xlab("Sequencing Reads") +
   ylab("Number of Samples") +
-  ggtitle("Distribution of Sample Sequencing Depth - Pre-Filtering")
+  ggtitle("Distribution of Sample Sequencing Depth")
 
  #Save file
  file_name =paste(output_location,filename,sep="")
@@ -428,23 +428,21 @@ physeq_filt = filter_taxa(physeq_filt, function(x) mean(x) > 1e-2, TRUE)
 histo_filtering_graph(physeq_filt, "Sample.Type","Graphs\\SeqDepth_prefilter.tiff")
 histo_filtering_graph(physeq_filt, "Run.ID","Graphs\\SeqDepth_prefilter_runid.tiff")
 
-#Create filtered phyloobject #blank samples
+#Subset
 sub_types<-c("Water","PCR.Blank","NTC.Blank")
 physeq_filt_sub <- subset_samples(physeq_filt, Source.Descrip %in% sub_types)
 histo_filtering_graph(physeq_filt_sub, "Source.Descrip", "Graphs\\SeqDepth_prefilter_blanks.tiff")
 
-#Create filtered phyloobject #seq specific
+#Subset
 sub_types<-c("Seq.Control")
 physeq_filt_sub <- subset_samples(physeq_filt, Sample.Type %in% sub_types)
 histo_filtering_graph(physeq_filt_sub, "Source.Descrip", "Graphs\\SeqDepth_prefilter_seq.tiff")
-
-#Create filtered phyloobject #seq specific
 histo_filtering_graph(physeq_filt_sub, "Run.ID", "Graphs\\SeqDepth_prefilter_seq_runid.tiff")
 
-#Create filtered phyloobject #ext specific
+#Subset
 sub_types<-c("Ext.Control")
-physeq_filt_sub <- subset_samples(physeq_filt, Source.Descrip %in% sub_types)
-histo_filtering_graph(physeq_filt_sub, "Graphs\\SeqDepth_prefilter_blanks.tiff")
+physeq_filt_sub <- subset_samples(physeq_filt, Sample.Type %in% sub_types)
+histo_filtering_graph(physeq_filt_sub, "Ext.Kit","Graphs\\SeqDepth_prefilter_ext_extkit.tiff")
 ```
 
 #Filter samples with less than 10000 reads: Review filtered read counts and plot
@@ -461,12 +459,24 @@ sample_summary(physeq_filt_prune,"","Data\\summary_postfilter.txt")
 sample_summary(physeq_filt_prune,"Sample.Type","Data\\summary_postfilter_Sample.Type.txt")
 sample_summary(physeq_filt_prune,"Sample.Cat","Data\\summary_postfilter_Sample.Cat.txt")
 
-# Repeat for blanks only
+# Subset
 sub_types<-c("Water","PCR.Blank","NTC.Blank")
 physeq_filt_sub <- subset_samples(physeq_filt_prune, Source.Descrip %in% sub_types)
-histo_filtering_graph(physeq_filt_sub, "Source.Descrip", "Graphs\\SeqDepth_prefilter_blanks.tiff")
+histo_filtering_graph(physeq_filt_sub, "Source.Descrip", "Graphs\\SeqDepth_postfilter_blanks.tiff")
 
+sub_types<-c("Seq.Control")
+physeq_filt_sub <- subset_samples(physeq_filt_prune, Sample.Type %in% sub_types)
+histo_filtering_graph(physeq_filt_sub, "Source.Descrip", "Graphs\\SeqDepth_postfilter_seq.tiff")
 
+sub_types<-c("Ext.Control")
+physeq_filt_sub <- subset_samples(physeq_filt_prune, Sample.Type %in% sub_types)
+histo_filtering_graph(physeq_filt_sub, "Ext.Kit","Graphs\\SeqDepth_postfilter_ext_extkit.tiff")
+histo_filtering_graph(physeq_filt_sub, "Source.Descrip","Graphs\\SeqDepth_postfilter_ext_sdesc.tiff")
+
+sub_types<-c("DZ35298", "IE")
+physeq_filt_sub <- subset_samples(physeq_filt_prune, SubjectID %in% sub_types)
+histo_filtering_graph(physeq_filt_sub, "Ext.Kit","Graphs\\SeqDepth_postfilter_study_extkit.tiff")
+histo_filtering_graph(physeq_filt_sub, "SubjectID","Graphs\\SeqDepth_postfilter_study_sub.tiff")
 ```
 
 #Subset filtered data, sample to specified depth
@@ -491,23 +501,29 @@ downsample_reads<-function(phyobject){
 }
 
 #Curve before scaling
-rare_curves(physeq_filt_prune,"Run.ID","","Rarecurve_pre-downsamp")
-rare_curves(physeq_filt_prune,"Run.ID","Sample.Type","Rarecurve_pre-downsamp_sampletype")
+rare_curves(physeq_filt_prune,"Run.ID","","Rarecurve_pre-ds")
+rare_curves(physeq_filt_prune,"Run.ID","Sample.Type","Rarecurve_pre-ds_sampletype")
+
+#Subset
+subset_list<-c("Seq.Control") 
+physeq_scale_sub<-subset_samples(physeq_filt_prune, Sample.Type %in% subset_list)
+rare_curves(physeq_scale_sub,"Run.ID","Sample.Type","Rarecurve_pre-ds_SeqC")
+rare_curves(physeq_scale_sub,"Run.ID","Source.Descrip","Rarecurve_pre-ds_SeqC_SDesc")
 
 #After scaling
 physeq_scale<-downsample_reads(physeq_filt_prune)
-rare_curves(physeq_scale,"Run.ID","","Rarecurve_post-downsamp")
-rare_curves(physeq_scale,"Run.ID","Sample.Type","Rarecurve_post-downsamp_sampletype")
+rare_curves(physeq_scale,"Run.ID","","Rarecurve_post-ds")
+rare_curves(physeq_scale,"Run.ID","Sample.Type","Rarecurve_post-ds_sampletype")
 
 #Subset
 subset_list<-c("Ext.Control") 
 physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
-rare_curves(physeq_scale_sub,"Run.ID","","Rarecurve_PostFiltering_ExtC")
+rare_curves(physeq_scale_sub,"Run.ID","","Rarecurve_post-ds_ExtC")
 
 subset_list<-c("Seq.Control") 
 physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
-rare_curves(physeq_scale_sub,"Run.ID","Sample.Type","Rarecurve_PostFiltering_SeqC")
-rare_curves(physeq_scale_sub,"Run.ID","Source.Descrip","Rarecurve_PostFiltering_SeqC_SDesc")
+rare_curves(physeq_scale_sub,"Run.ID","Sample.Type","Rarecurve_post-ds_SeqC")
+rare_curves(physeq_scale_sub,"Run.ID","Source.Descrip","Rarecurve_post-ds_SeqC_SDesc")
 
 ```
 
