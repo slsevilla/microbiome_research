@@ -80,6 +80,12 @@ for (a in project_name){
  #read metadata
  metadata<-read.table(paste(data_location,manifest_name[count],sep="\\"),sep='\t', header=T, row.names=1, comment="")
  
+ #Replace all Run IDs with shorthand
+ metadata$Run.ID <- replace(as.character(metadata$Run.ID), metadata$Run.ID == "180112_M01354_0104_000000000-BFN3F", "Run.1")
+ metadata$Run.ID <- replace(as.character(metadata$Run.ID), metadata$Run.ID == "180112_M03599_0134_000000000-BFD9Y", "Run.2")
+ metadata$Run.ID <- replace(as.character(metadata$Run.ID), metadata$Run.ID == "180328_M01354_0106_000000000-BFMHC", "Run.3")
+ metadata$Run.ID <- replace(as.character(metadata$Run.ID), metadata$Run.ID == "190617_M01354_0118_000000000-CHFG3", "Run.4")
+ 
  #Create phylo object
  phyloname<-paste("physeq_complete",count,sep="")
  assign(phyloname,phyloseq(otu_table(otus$data, taxa_are_rows = T), phy_tree(tree$data), tax_table(tax_table), sample_data(metadata)))
@@ -494,13 +500,14 @@ rare_curves(physeq_scale,"Run.ID","","Rarecurve_post-downsamp")
 rare_curves(physeq_scale,"Run.ID","Sample.Type","Rarecurve_post-downsamp_sampletype")
 
 #Subset
-subset_list<-c("Ext.Control") #"Ext.Control"
+subset_list<-c("Ext.Control") 
 physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
-rare_curves(physeq_scale_sub,"Run.ID","","Rarecurve_PostFiltering_ExtControls")
+rare_curves(physeq_scale_sub,"Run.ID","","Rarecurve_PostFiltering_ExtC")
 
-subset_list<-c("Seq.Control") #"Ext.Control"
+subset_list<-c("Seq.Control") 
 physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
-rare_curves(physeq_scale_sub,"Run.ID","","Rarecurve_PostFiltering_SeqControls")
+rare_curves(physeq_scale_sub,"Run.ID","Sample.Type","Rarecurve_PostFiltering_SeqC")
+rare_curves(physeq_scale_sub,"Run.ID","Source.Descrip","Rarecurve_PostFiltering_SeqC_SDesc")
 
 ```
 
