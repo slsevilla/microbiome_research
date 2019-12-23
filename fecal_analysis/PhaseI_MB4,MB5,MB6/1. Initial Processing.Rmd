@@ -11,7 +11,7 @@ parent_dir = c("T:\\DCEG\\Projects\\MicroBiome\\Analysis\\Project_NP0084_MB4\\")
 project_name=c("Complete_Run\\MB4,MB5,MBpt6","Complete_Run\\MB6")
 manifest_name=c("NP0084-MB4_08_29_19_metadata.txt", "NP0084-MB6.txt")
 
-output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_ExtVariation\\")
+output_location=c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Complete\\")
 
 sample_depth=100000
 reference_db=c("greengenes")
@@ -234,10 +234,19 @@ physeq_filt<-physeq_complete %>%
   )
 
 #Print summaries
-s<-summary(sample_data(physeq_filt)$Sample.Type)
-capture.output(s, file = paste(output_location,"Data\\summary_prefilter_sample.type.txt",sep=""))
-s<-summary(sample_data(physeq_filt)$Sample.Cat)
-capture.output(s, file = paste(output_location,"Data\\summary_prefilter_sample.cat.txt",sep=""))
+sample_summary<-function(phyobj, filtcat, filename){
+ if(filtcat==""){
+  s<-summary(sample_data(phyobj))
+ }
+ else{
+  s<-summary(sample_data(phyobj)[,filtcat])
+ }
+ capture.output(s, file = paste(output_location,filename,sep=""))
+}
+
+sample_summary(physeq_filt,"Sample.Type","Data\\summary_prefilter_sample.type.txt")
+sample_summary(physeq_filt,"Sample.Cat","Data\\summary_prefilter_sample.cat.txt")
+
 ```
 
 #Determine significance - TTests
@@ -387,95 +396,83 @@ for (a in test_list){
 
 #Filter taxa >.001 ; Determine read counts and plot
 ```{r}
-physeq_filt = filter_taxa(physeq_filt, function(x) mean(x) > 1e-2, TRUE)
-physeq_filt #note new taxa number and sample number
-
-# Make a data frame with a column for the read counts of each sample
-sample_sum_df<-data.frame(sum = sample_sums(physeq_filt),sample_data(physeq_filt))
-colnames(sample_sum_df)
-
 # Histogram of sample read counts by sampletype
-p1<-ggplot(sample_sum_df, aes(x = sum, fill=Sample.Type)) + 
+histo_filtering_graph <- function(phyobject, filtcat, filename) {
+ 
+# Make a data frame with a column for the read counts of each sample
+sample_sum_df<-data.frame(sum = sample_sums(phyobject),sample_data(phyobject))
+colnames(sample_sum_df)
+ 
+ p1<-ggplot(sample_sum_df, aes(x = sum, fill=get(filtcat))) + 
+  labs(fill=filtcat) +
   geom_histogram(binwidth = 2500) +
   xlab("Sequencing Reads") +
   ylab("Number of Samples") +
   ggtitle("Distribution of Sample Sequencing Depth - Pre-Filtering")
 
-#Save file
-file_name =paste(output_location,"Graphs\\SeqDepth_prefilter.tiff",sep="")
-tiff(file_name, width=800)
-print(p1)
-dev.off()
-
-#Read counts of blanks only
-blank_types<-c("Water","PCR.Blank","NTC.Blank")
-physeq_filt_blanks <- subset_samples(physeq_filt, Source.Descrip %in% blank_types)
-    
-# Make a data frame with a column for the read counts of each sample
-sample_sum_df<-data.frame(sum = sample_sums(physeq_filt_blanks),sample_data(physeq_filt_blanks))
-colnames(sample_sum_df)
- 
- # Histogram of sample read counts by sampletype
-p1<-ggplot(sample_sum_df, aes(x = sum, fill=Run.ID)) + 
-  geom_histogram(binwidth = 800) +
-   xlab("Sequencing Reads") +
-   ylab("Number of Samples") +
-   ggtitle("Distribution of Sample Sequencing Depth - Pre-Filtering")
- 
  #Save file
-file_name =paste(output_location,"Graphs\\SeqDepth_prefilter_blanks.tiff",sep="")
-tiff(file_name, width=800)
-print(p1)
-dev.off()
-```
-
-#Filter samples with less than 10000 reads: Review filtered read counts and plot
-```{r}
-plot_reads<-function(sum_table,filtcat){
- # Histogram of sample read counts by sample type
- p1<-ggplot(sample_sum_df, aes(x = sum, fill=get(filtcat))) + 
-   geom_histogram(binwidth = 2500) +
-   xlab("Sequencing Reads") +
-   ylab("Number of Samples") +
-   ggtitle("Distribution of Sample Sequencing Depth - Post-Filtering")
- file_name =paste(output_location,"Graphs\\SeqDepth_postfilter_",filtcat,".tiff",sep="")
+ file_name =paste(output_location,filename,sep="")
  tiff(file_name, width=800)
  print(p1)
  dev.off()
 }
 
+#Create filtered phyloobject #All samples
+physeq_filt = filter_taxa(physeq_filt, function(x) mean(x) > 1e-2, TRUE)
+histo_filtering_graph(physeq_filt, "Sample.Type","Graphs\\SeqDepth_prefilter.tiff")
+histo_filtering_graph(physeq_filt, "Run.ID","Graphs\\SeqDepth_prefilter_runid.tiff")
+
+#Create filtered phyloobject #blank samples
+sub_types<-c("Water","PCR.Blank","NTC.Blank")
+physeq_filt_sub <- subset_samples(physeq_filt, Source.Descrip %in% sub_types)
+histo_filtering_graph(physeq_filt_sub, "Source.Descrip", "Graphs\\SeqDepth_prefilter_blanks.tiff")
+
+#Create filtered phyloobject #seq specific
+sub_types<-c("Seq.Control")
+physeq_filt_sub <- subset_samples(physeq_filt, Sample.Type %in% sub_types)
+histo_filtering_graph(physeq_filt_sub, "Source.Descrip", "Graphs\\SeqDepth_prefilter_seq.tiff")
+
+#Create filtered phyloobject #seq specific
+histo_filtering_graph(physeq_filt_sub, "Run.ID", "Graphs\\SeqDepth_prefilter_seq_runid.tiff")
+
+#Create filtered phyloobject #ext specific
+sub_types<-c("Ext.Control")
+physeq_filt_sub <- subset_samples(physeq_filt, Source.Descrip %in% sub_types)
+histo_filtering_graph(physeq_filt_sub, "Graphs\\SeqDepth_prefilter_blanks.tiff")
+```
+
+#Filter samples with less than 10000 reads: Review filtered read counts and plot
+```{r}
 #All samples
-physeq_filt = prune_samples(sample_sums(physeq_filt) > 10000, physeq_filt)
-sample_sum_df<-data.frame(sum = sample_sums(physeq_filt),sample_data(physeq_filt))
-colnames(sample_sum_df)
+physeq_filt_prune = prune_samples(sample_sums(physeq_filt) > 10000, physeq_filt)
 
-plot_reads(sample_sum_df,"Sample.Type")
-plot_reads(sample_sum_df,"Run.ID") # Histogram of sample read counts by Run id - explain two clusters
-
-# Repeat for blanks only
-physeq_filt_blanks = prune_samples(sample_sums(physeq_filt_blanks) > 10000, physeq_filt_blanks)
-sample_sum_df<-data.frame(sum = sample_sums(physeq_filt_blanks),sample_data(physeq_filt_blanks))
-colnames(sample_sum_df)
-
-plot_reads(sample_sumdf,"Ext.Kit") # Histogram of sample read counts by ext kit
+histo_filtering_graph(physeq_filt_prune,"Sample.Type", "Graphs\\SeqDepth_postfilter.tiff")
+histo_filtering_graph(physeq_filt_prune,"Run.ID", "Graphs\\SeqDepth_postfilter_runid.tiff") # Histogram of sample read counts by Run id - explain two clusters
+histo_filtering_graph(physeq_filt_prune,"Source.Descrip", "Graphs\\SeqDepth_postfilter_sdesc.tiff") # Histogram of sample read counts by Run id - explain two clusters
 
 #Print summaries
-s<-summary(sample_data(physeq_filt))
-capture.output(s, file = paste(output_location,"Data\\summary_postfilter.txt",sep=""))
+sample_summary(physeq_filt_prune,"","Data\\summary_postfilter.txt")
+sample_summary(physeq_filt_prune,"Sample.Type","Data\\summary_postfilter_Sample.Type.txt")
+sample_summary(physeq_filt_prune,"Sample.Cat","Data\\summary_postfilter_Sample.Cat.txt")
 
-s<-summary(sample_data(physeq_filt)$Sample.Type)
-capture.output(s, file = paste(output_location,"Data\\summary_postfilter_sample.type.txt",sep=""))
+# Repeat for blanks only
+sub_types<-c("Water","PCR.Blank","NTC.Blank")
+physeq_filt_sub <- subset_samples(physeq_filt_prune, Source.Descrip %in% sub_types)
+histo_filtering_graph(physeq_filt_sub, "Source.Descrip", "Graphs\\SeqDepth_prefilter_blanks.tiff")
 
-s<-summary(sample_data(physeq_filt)$Sample.Cat)
-capture.output(s, file = paste(output_location,"Data\\summary_postfilter_sample.cat.txt",sep=""))
+
 ```
 
 #Subset filtered data, sample to specified depth
 ```{r}
 # Create rarefaction curve
-rare_curves<-function(phyobject,coloroption,graphtitle){
+rare_curves<-function(phyobject,coloroption,facetchoice,graphtitle){
  p1 <- ggrare(phyobject, step = 1000, color = coloroption, se = FALSE)
- p1 <- p1 + facet_wrap(~Sample.Type)
+ 
+ if(facetchoice!=""){
+  p1 <- p1 + facet_wrap(~get(facetchoice))
+ }
+ 
  file_name =paste(output_location,"Graphs\\",graphtitle,".tiff",sep="")
  tiff(file_name, width=800)
  print(p1)
@@ -488,19 +485,23 @@ downsample_reads<-function(phyobject){
 }
 
 #Curve before scaling
-rare_curves(physeq_filt,"Run.ID","Rarecurve_PreFiltering")
+rare_curves(physeq_filt_prune,"Run.ID","","Rarecurve_pre-downsamp")
+rare_curves(physeq_filt_prune,"Run.ID","Sample.Type","Rarecurve_pre-downsamp_sampletype")
 
 #After scaling
-physeq_scale<-downsample_reads(physeq_filt)
-rare_curves(physeq_scale,"Run.ID","Rarecurve_PostFiltering")
+physeq_scale<-downsample_reads(physeq_filt_prune)
+rare_curves(physeq_scale,"Run.ID","","Rarecurve_post-downsamp")
+rare_curves(physeq_scale,"Run.ID","Sample.Type","Rarecurve_post-downsamp_sampletype")
 
-#Sample Type Specific - Controls
-unique(sample_data(physeq_scale)$Sample.Type)
+#Subset
 subset_list<-c("Ext.Control") #"Ext.Control"
-
 physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+rare_curves(physeq_scale_sub,"Run.ID","","Rarecurve_PostFiltering_ExtControls")
 
-rare_curves(physeq_scale_sub,"Run.ID","Rarecurve_PostFiltering_SeqControls")
+subset_list<-c("Seq.Control") #"Ext.Control"
+physeq_scale_sub<-subset_samples(physeq_scale, Sample.Type %in% subset_list)
+rare_curves(physeq_scale_sub,"Run.ID","","Rarecurve_PostFiltering_SeqControls")
+
 ```
 
 #Alpha Diversity - All samples, Run ID
