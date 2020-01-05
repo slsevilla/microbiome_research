@@ -41,8 +41,8 @@ library(tidyverse)
 library(tidyr)
 library(tm)
 library(vegan)
+library(base)
 ```
-
 
 #Analysis
 ###############
@@ -103,7 +103,7 @@ for(a in taxa_level){
 #Load phylo object
 ```{r}
 #NOTE: must run 1. Initial processing
-#physeq_scale include all samples
+#physeq_filt includes all samples, after filtering
 
 #Subset to create standard ext only
 subset_list<-c("Ext.Control") 
@@ -125,11 +125,11 @@ if(ext_choice=="STD"){
 #OTU Counts by sample
 Determine total OTUs
 ```{r}
-taxa_Genus_greengenes$Total_OTUs <- rowSums(taxa_Genus_greengenes)
 
+taxa_Genus_greengenes$Total_OTUs <- rowSums(taxa_Genus_greengenes)
 ```
 
-#Observed to Expected Counts
+#TAR/TDR Sample Level
 ```{r}
 #Testing
 # output<-tar_tdr
@@ -218,7 +218,7 @@ write.csv(tar_tdr,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_",ext_choi
 
 ```
 
-#Average by Control
+#TAR/TDR Averaged
 ```{r}
 #Testing
 # db<-subset(tar_tdr,Kit=="DSP Virus")
@@ -326,181 +326,96 @@ if(ext_choice=="STD"){
 
 #Relative Abundance  - Ext Controls
 ```{r}
-relabun_extcont<-data.frame()
-
-#Complete Relative Abundance
-sample_list_extcont<-rownames(taxa_Genus_greengenes)
-taxa_list <- colnames(taxa_Genus_greengenes)
-taxa_list<-taxa_list[-(length(taxa_list))] #Remove total OTU's from list
-taxa_list<-unique(append(taxa_list,rownames(expected_taxa_Genus)))
-
-for (a in sample_list_extcont){
- relabun_extcont[a,"Source.Descrip"]<-as.character(metadata_Genus_greengenes[a,"Source.Descrip"])
- relabun_extcont[a,"Ext.Kit"]<-as.character(metadata_Genus_greengenes[a,"Ext.Kit"])
- relabun_extcont[a,"Homo.Method"]<-as.character(metadata_Genus_greengenes[a,"Homo.Method"])
-
- 
- for (b in taxa_list){
-  relabun <- taxa_Genus_greengenes[a,b]
+#Function for relative abundance - sample level
+relabun<-function(taxadb,exptaxadb,metadb){
+  #Testing
+  # taxadb<-taxa_Genus_greengenes
+  # exptaxadb<-expected_taxa_Genus
+  # metadb<-metadata_Genus_greengenes
+  # remove(taxadb,exptaxadb,metadb)
   
-  if(!(is.na(relabun) || is.null(relabun) || relabun==0)){
-   relabun_extcont[a,b] <- taxa_Genus_greengenes[a,b]/taxa_Genus_greengenes[a,"Total_OTUs"]
-  } else{
-   relabun_extcont[a,b] <- 0
+  relabun_extcont<-data.frame()
+
+  #Complete Relative Abundance
+  sample_list_extcont<-rownames(taxadb)
+  taxa_list <- colnames(taxadb)
+  taxa_list<-taxa_list[-(length(taxa_list))] #Remove total OTU's from list
+  taxa_list<-unique(append(taxa_list,rownames(exptaxadb)))
+  
+  for (a in sample_list_extcont){
+   relabun_extcont[a,"Source.Descrip"]<-as.character(metadb[a,"Source.Descrip"])
+   relabun_extcont[a,"Ext.Kit"]<-as.character(metadb[a,"Ext.Kit"])
+   relabun_extcont[a,"Homo.Method"]<-as.character(metadb[a,"Homo.Method"])
+   
+   for (b in taxa_list){
+    relabun <- taxadb[a,b]
+    
+    if(!(is.na(relabun) || is.null(relabun) || relabun==0)){
+      relabun_extcont[a,b] <- taxadb[a,b]/taxadb[a,"Total_OTUs"]
+      relabun_extcont[a,"Total_OTUs"]<-taxadb[a,"Total_OTUs"]
+
+    } else{
+     relabun_extcont[a,b] <- 0
+    }
+   }
   }
- }
+  
+  write.csv(relabun_extcont,paste(output_location,"Data/relabun_extcont_",ext_choice,".csv",sep=""))
+  return(relabun_extcont)
+  
 }
 
-write.csv(relabun_extcont,paste(output_location,"Data\\relabun_extcont_",ext_choice,".csv",sep=""))
+#Function for relative abundance - averaged
+relabun_av<-function(db,taxadb,exptaxadb,type,subset){
+  # #Testing
+  # db<-relabun_extcont
+  # subset<-"Ext.Kit"
+  # remove(db,subset,temp,temp2,tempcols,temp3)
 
-#Calculate averages - Across all kits/homog
-relabun_extcont_av<-sort(unique(relabun_extcont$Source.Descrip))
-
-for (a in taxa_list){
+  #Determine unique subset list
+  relabun_extcont_av<-data.frame()
+  
+  #Subset database by control
+  for (a in unique(db[,"Source.Descrip"])){
+    temp<-subset(db,Source.Descrip==a)
+    
+    for(b in unique(temp[,subset])){
+      temp2<-temp[temp[,subset]==b,]
+      tempcols<-colnames(temp2[,4:ncol(temp2)])
+   
+      #if the database includes this control
+      taxa_list <- colnames(taxadb)
+      taxa_list<-taxa_list[-(length(taxa_list))] #Remove total OTU's from list
+      taxa_list<-unique(append(taxa_list,rownames(exptaxadb)))
+      
+      if(nrow(temp2)>0){
+        rowcount=nrow(relabun_extcont_av)+1
+        for (c in taxa_list){
+          temp3<-mean(temp2[,c])
+          relabun_extcont_av[rowcount,"Name"]<-paste(a,b,sep="_")
+          relabun_extcont_av[rowcount,"Subset"]<-b
+          relabun_extcont_av[rowcount,"Source.Descrip"]<-a
+          relabun_extcont_av[rowcount,c]<-temp3
+        } 
+      }
+    }
+  }
+  
+  rownames(relabun_extcont_av)<-relabun_extcont_av$Name
+  relabun_extcont_av<-relabun_extcont_av[,-1]
+  write.csv(relabun_extcont_av,paste(output_location,"Data/relabun_extcont_av_",type,"_",subset,".csv",sep=""))
+}
  
- temp<-aggregate(relabun_extcont[,a], list(relabun_extcont$Source.Descrip), FUN = function(x) mean(as.numeric(as.character(x))))
- relabun_extcont_av<-cbind(relabun_extcont_av,temp[,2])
-}
-
-#Convert to df, add taxa as colnames
-relabun_extcont_av<-as.data.frame(relabun_extcont_av)
-row.names(relabun_extcont_av)<-relabun_extcont_av[,1] #col one is Source.Descrip
-relabun_extcont_av<-relabun_extcont_av[,-1]
-colnames(relabun_extcont_av)<-taxa_list
-relabun_extcont_av[] <- lapply(relabun_extcont_av, function(x) {
-    as.numeric(as.character(x))})
-
-#add expected rel abundance
-temp<-data.frame()
-for (a in control_type){
- for (b in taxa_list){
-  temp[paste(a,"_exp",sep=""),b]<-as.numeric(as.character(expected_taxa_Genus[b,a]))
- }
-}
-
 temp[temp=="A" ]=0 #replace A's with 0
 temp[is.na(temp)]=0 #replace A's with 0
 temp<-as.data.frame(temp)
 relabun_extcont_av<-rbind(relabun_extcont_av,temp)
 
-write.csv(relabun_extcont_av,paste(output_location,"Data\\relabun_extcont_av.csv",sep=""))
+#Run functions
+relabun_extcont<-relabun(taxa_Genus_greengenes,expected_taxa_Genus,metadata_Genus_greengenes)
+relabun_av(relabun_extcont,taxa_Genus_greengenes,expected_taxa_Genus,"std","Source.Descrip")
+relabun_av(relabun_extcont,taxa_Genus_greengenes,expected_taxa_Genus,"std","Ext.Kit")
 
-
-
-relabun_subset<-function(){
- 
- #Calculate averages - Across all kits/homog
- relabun_extcont_av<-sort(unique(relabun_extcont$Source.Descrip))
- 
- for (a in taxa_list){
-  
-  temp<-aggregate(relabun_extcont[,a], list(relabun_extcont$Source.Descrip), FUN = function(x) mean(as.numeric(as.character(x))))
-  relabun_extcont_av<-cbind(relabun_extcont_av,temp[,2])
- }
- 
- #Convert to df, add taxa as colnames
- relabun_extcont_av<-as.data.frame(relabun_extcont_av)
- row.names(relabun_extcont_av)<-relabun_extcont_av[,1] #col one is Source.Descrip
- relabun_extcont_av<-relabun_extcont_av[,-1]
- colnames(relabun_extcont_av)<-taxa_list
- relabun_extcont_av[] <- lapply(relabun_extcont_av, function(x) {
-     as.numeric(as.character(x))})
- 
- #add expected rel abundance
- temp<-data.frame()
- for (a in control_type){
-  for (b in taxa_list){
-   temp[paste(a,"_exp",sep=""),b]<-as.numeric(as.character(expected_taxa_Genus[b,a]))
-  }
- }
- 
- temp[temp=="A" ]=0 #replace A's with 0
- temp[is.na(temp)]=0 #replace A's with 0
- temp<-as.data.frame(temp)
- relabun_extcont_av<-rbind(relabun_extcont_av,temp)
- 
- write.csv(relabun_extcont_av,paste(output_location,"Data\\relabun_extcont_av.csv",sep=""))
-}
-
-```
-
-
-
-
-#5. Relative Abundance  - Ext Controls
-```{r}
-relabun_baseline_extcontrols<-data.frame()
-
-#Complete Relative Abundance
-samplelist_extcontrols<-rownames(otu_baseline_complete)
-genus_list <- colnames(otu_baseline_complete)
-genus_list<-genus_list[-(length(genus_list))]
-genus_list<-append(genus_list,rownames(control_expect))
-kit_list <- unique(observed_baseline_extcontrols$Ext.Kit)
-
-for (a in kit_list){
- for (b in samplelist_extcontrols){
-  for (c in genus_list){
-   
-   relabun <- otu_baseline_complete[b,c]
-   
-   if(!(is.na(relabun) || is.null(relabun) || relabun==0)){
-    relabun_baseline_extcontrols[b,"Source.Descrip"]<-as.character(metadata_baseline[b,"Source.Descrip"])
-    relabun_baseline_extcontrols[b,"Ext.Kit"]<-as.character(metadata_baseline[b,"Ext.Kit"])
-    relabun_baseline_extcontrols[b,c] <- otu_baseline_complete[b,c]/otu_baseline_complete[b,"Total_OTUs"]
-    relabun_baseline_extcontrols[b,"Homo.Method"] <- metadata_baseline[b,"Homo.Method"]
-    
-   }
-   control_type<-as.character(metadata_baseline[b,"Source.Descrip"])
-   if(control_type!="Water"){
-    sample_name<-paste(control_type,"_Expected",sep="") #Add control information to compare expected frequencies
-    kit_name <- a
-    relabun_baseline_extcontrols[sample_name,c]<-as.character(control_expect[c,control_type])
-    relabun_baseline_extcontrols[sample_name,"Source.Descrip"]<-control_type
-    relabun_baseline_extcontrols[sample_name,"Ext.Kit"]<-kit_name
-   }
-  }
- }
-}
-
-relabun_baseline_extcontrols[is.na(relabun_baseline_extcontrols)]=0 #replace na's with 0
-relabun_baseline_extcontrols[relabun_baseline_extcontrols=="A"]=0 #replace A's with 0
-write.csv(relabun_baseline_extcontrols,paste(project_location,"\\Output\\R\\Data\\Baseline\\relabun_baseline_extcontrols2.csv",sep=""))
-
-#Create rel abun df to graph observed to expected frequencies
-samplelist_extcontrols_nowater <- subset(metadata_baseline,Source.Descrip!="Water") #only include controls
-samplelist_extcontrols_nowater <- rownames(samplelist_extcontrols_nowater)
-relabun_baseline_extcontrols_otoe<-data.frame()
-count=1
-
-for (a in samplelist_extcontrols_nowater){
- for (b in genus_list){
-  control_type<-as.character(metadata_baseline[a,"Source.Descrip"])
-  
-  relabun_ob <- relabun_baseline_extcontrols[a,b]
-  relabun_ex <- as.character(control_expect[b,control_type])
-  sample_name  <- a
-  genus_temp <- b
-
-  if(!is.null(relabun_ex) && relabun_ex!="A" && !is.na(relabun_ex)){ #Only need genus that are expected for comparisons
-   relabun_baseline_extcontrols_otoe[count,"SampleID"]<-sample_name
-   relabun_baseline_extcontrols_otoe[count,"RelAbun_Obs"]<-relabun_ob
-   relabun_baseline_extcontrols_otoe[count,"RelAbun_Exp"]<-relabun_ex
-   relabun_baseline_extcontrols_otoe[count,"Genus"]<-genus_temp
-   relabun_baseline_extcontrols_otoe[count,"Ext.Kit"]<-relabun_baseline_extcontrols[a,"Ext.Kit"]
-   relabun_baseline_extcontrols_otoe[count,"Source.Descrip"]<-relabun_baseline_extcontrols[a,"Source.Descrip"]
-   count=count+1
-  }
-  
- }
-}
-
-write.csv(relabun_baseline_extcontrols_otoe,paste(project_location,"\\Output\\R\\Data\\Baseline\\relabun_baseline_extcontrols_otoe.csv",sep=""))
-
-```
-
-#6 Graph Rel Abun E to O by Control
-```{r}
 plot_list <- list()
 control_types <- unique(relabun_baseline_extcontrols_otoe$Source.Descrip)
 i=1
@@ -541,9 +456,8 @@ for (i in 1:(length(control_types))){
  
  count = count+1
 } 
-
-
 ```
+
 
 #7 Relative Abundance % Difference
 ```{r}
