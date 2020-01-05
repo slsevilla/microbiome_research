@@ -7,16 +7,18 @@ editor_options:
 
 #To Update
 ```{r}
-output_location<-c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Analysis\\NP0084-MB4,5,6\\R_Complete\\")
+parent_location=c("t:DCEG/CGF/TechTransfer/Microbiome/Extraction/Optimization/Fecal/Fresh\ Fecal\ Optimization_2017.08/Phase\ I/Analysis/NP0084-MB4,5,6/R_Complete/")
 
-taxa_levels<-c("Genus")
+output_location<-c("t:DCEG/CGF/TechTransfer/Microbiome/Extraction/Optimization/Fecal/Fresh\ Fecal\ Optimization_2017.08/Phase\ I/Analysis/NP0084-MB4,5,6/R_ExtVariation/")
+
+taxa_level<-c("Genus")
 reference_db<-"greengenes"
+ext_choice<-"STD" #STD or HMO
 
-file_ext<-"_extcontrol_std.csv"
+manifest_name<-paste("metadata_",taxa_level,"_",reference_db,"_extcontrol_",ext_choice,".csv",sep="")
+taxa_file<-paste("taxa_",taxa_level,"_",reference_db,"_extcontrol_",ext_choice,".csv",sep="")
 
-ext_choice<-"STD"
-
-control_location<-c("T:\\DCEG\\CGF\\TechTransfer\\Microbiome\\Extraction\\Optimization\\Fecal\\Fresh Fecal Optimization_2017.08\\Phase I\\Controls\\Taxonomy\\")
+control_location<-c("t:DCEG/CGF/TechTransfer/Microbiome/Extraction/Optimization/Fecal/Fresh Fecal Optimization_2017.08/Phase I/Controls/Taxonomy/")
 ```
 
 #Load required libraries
@@ -53,14 +55,18 @@ for(a in dir_create){
  dir.create(paste(output_location,a,sep=""))
 }
 
+#Move metadata, taxonomy,otu files
+file.copy(paste(parent_location,"/Taxa/",manifest_name,sep=""),paste(output_location,"/Data",sep=""))
+file.copy(paste(parent_location,"/Taxa/",taxa_file,sep=""),paste(output_location,"/Taxa",sep=""))
+file.copy(paste(parent_location,"/OTUs/otu_table.csv",sep=""),paste(output_location,"/OTUs",sep=""))
 ```
 
 #Taxonomy Reference - Expected frequencies
 ```{r}
 #Read in controls taxonomy file, grouped by taxa
-for (a in taxa_levels){
- control_expect <- read.table(paste(control_location,"Taxonomy_",taxa_levels,"_2019.txt",sep=""),sep="\t",header=TRUE)
- rownames(control_expect) <- unique(control_expect[,taxa_levels])
+for (a in taxa_level){
+ control_expect <- read.table(paste(control_location,"Taxonomy_",taxa_level,"_2019.txt",sep=""),sep="\t",header=TRUE)
+ rownames(control_expect) <- unique(control_expect[,taxa_level])
  
  control_db_name<-paste("expected_taxa_",a,sep="")
  assign(control_db_name,control_expect)
@@ -71,11 +77,11 @@ for (a in taxa_levels){
 
 #Load OTU and metadata tables
 ```{r}
-for(a in taxa_levels){
+for(a in taxa_level){
  for (b in reference_db){
   metadata_db_name<-paste("metadata_",a,"_",b,sep="")
   
-  temp <- read.table(paste(output_location,"Taxa\\",metadata_db_name,file_ext,sep=""),sep=",",header= TRUE)
+  temp <- read.table(paste(output_location,"Data/",metadata_db_name,"_extcontrol_",ext_choice,".csv",sep=""),sep=",",header= TRUE)
   rownames(temp)<-temp$X
   temp<-temp[-1]
   
@@ -84,7 +90,7 @@ for(a in taxa_levels){
   
   taxa_db_name<-paste("taxa_",a,"_",b,sep="")
   
-  temp<-read.table(paste(output_location,"Taxa\\",taxa_db_name,file_ext,sep=""),sep=",",header= TRUE)
+  temp<-read.table(paste(output_location,"Taxa/",taxa_db_name,"_extcontrol_",ext_choice,".csv",sep=""),sep=",",header= TRUE)
   rownames(temp)<-temp$X
   temp<-temp[-1]
   
@@ -199,7 +205,7 @@ other_filt<-unique(sample_data(physeq_scale_sub)$Ext.Kit)
 
 tar_tdr<-data.frame()
 for(a in reference_db){
- for (b in taxa_levels){
+ for (b in taxa_level){
   for (c in control_type){
    for (d in other_filt){
     tar_tdr<-tp_fp_fn_samplelevel(tar_tdr,a,b,c,d) #D: change subsetting of sample_list as needed within funciton IE Source.Descrip or Ext.Kit
@@ -215,11 +221,11 @@ write.csv(tar_tdr,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_",ext_choi
 #Average by Control
 ```{r}
 #Testing
-db<-subset(tar_tdr,Kit=="DSP Virus")
-opts<-"DSP Virus"
-db<-tar_tdr
-opts<-"HOMO"
-remove(db,opts,temp,count)
+# db<-subset(tar_tdr,Kit=="DSP Virus")
+# opts<-"DSP Virus"
+# db<-tar_tdr
+# opts<-"HOMO"
+# remove(db,opts,temp,count)
 
 #update cols for kit inclusion
 tar_tdr_av_kit<-function(db,opts,opts2){
@@ -276,7 +282,7 @@ if(ext_choice=="STD"){
  }
  
  tar_tdr_av<-tar_tdr_av[-1,]#Remove starter row
- write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_av_kit.csv",sep=""))
+ write.csv(tar_tdr_av,paste(output_location,"\\Taxa\\Taxonomy_tar_trd_ext_av_std_kit.csv",sep=""))
  
  } else{
 
