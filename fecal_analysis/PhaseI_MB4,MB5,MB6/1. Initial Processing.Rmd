@@ -699,3 +699,8 @@ for (a in taxa_levels){
  split_phyloobject(a,physeq_scale_sub,reference_db,file_name) #change object 
 }
 ```
+
+#Save worktable
+```{r}
+save.image(paste(output_location,"workspace_",Sys.Date(),".RData",sep=""))
+```

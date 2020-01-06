@@ -19,9 +19,11 @@ manifest_name<-paste("metadata_",taxa_level,"_",reference_db,"_extcontrol_",ext_
 taxa_file<-paste("taxa_",taxa_level,"_",reference_db,"_extcontrol_",ext_choice,".csv",sep="")
 
 control_location<-c("t:DCEG/CGF/TechTransfer/Microbiome/Extraction/Optimization/Fecal/Fresh Fecal Optimization_2017.08/Phase I/Controls/Taxonomy/")
+
+worktable_name<-(paste(parent_location,"workspace_2020-01-05.RData",sep=""))
 ```
 
-#Load required libraries
+#Load required libraries, worktable
 ############### 
 ```{r}
 library("ape")
@@ -42,6 +44,8 @@ library(tidyr)
 library(tm)
 library(vegan)
 library(base)
+
+load(worktable_name)
 ```
 
 #Analysis
@@ -399,24 +403,33 @@ relabun_av<-function(db,taxadb,exptaxadb,type,subset){
         } 
       }
     }
+    
+    rowcount=nrow(relabun_extcont_av)+1
+    if(a!="Water"){
+      for (b in rownames(exptaxadb)){
+        print(a)
+        print(as.numeric(as.character(exptaxadb[b,a])))
+        relabun_extcont_av[rowcount,"Name"]<-paste(a,"expected",sep="_")
+        relabun_extcont_av[rowcount,b]<-as.numeric(as.character(exptaxadb[b,a]))
+      } 
+    }
   }
+  
+  relabun_extcont_av[relabun_extcont_av=="A" ]=0 #replace A's with 0
+  relabun_extcont_av[is.na(relabun_extcont_av)]=0 #replace A's with 0
   
   rownames(relabun_extcont_av)<-relabun_extcont_av$Name
   relabun_extcont_av<-relabun_extcont_av[,-1]
   write.csv(relabun_extcont_av,paste(output_location,"Data/relabun_extcont_av_",type,"_",subset,".csv",sep=""))
+  return(relabun_extcont_av)
 }
  
-temp[temp=="A" ]=0 #replace A's with 0
-temp[is.na(temp)]=0 #replace A's with 0
-temp<-as.data.frame(temp)
-relabun_extcont_av<-rbind(relabun_extcont_av,temp)
-
 #Run functions
 relabun_extcont<-relabun(taxa_Genus_greengenes,expected_taxa_Genus,metadata_Genus_greengenes)
 relabun_av(relabun_extcont,taxa_Genus_greengenes,expected_taxa_Genus,"std","Source.Descrip")
-relabun_av(relabun_extcont,taxa_Genus_greengenes,expected_taxa_Genus,"std","Ext.Kit")
+relabun_extcont_av<-relabun_av(relabun_extcont,taxa_Genus_greengenes,expected_taxa_Genus,"std","Ext.Kit")
 
-plot_list <- list()
+relabun_extcont_avplot_list <- list()
 control_types <- unique(relabun_baseline_extcontrols_otoe$Source.Descrip)
 i=1
 
