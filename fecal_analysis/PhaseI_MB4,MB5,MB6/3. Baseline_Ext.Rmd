@@ -54,15 +54,16 @@ load(worktable_name)
 ```{r}
 #Create directories
 dir_create<-c("Data","OTUs","Taxa","Graphs")
-
 for(a in dir_create){
- dir.create(paste(output_location,a,sep=""))
+  if (dir.exists(paste(output_location,a,sep=""))==FALSE){
+    dir.create(paste(output_location,a,sep=""))
+  }
 }
 
 #Move metadata, taxonomy,otu files
-file.copy(paste(parent_location,"/Taxa/",manifest_name,sep=""),paste(output_location,"/Data",sep=""))
-file.copy(paste(parent_location,"/Taxa/",taxa_file,sep=""),paste(output_location,"/Taxa",sep=""))
-file.copy(paste(parent_location,"/OTUs/otu_table.csv",sep=""),paste(output_location,"/OTUs",sep=""))
+file.copy(paste(parent_location,"Taxa/",manifest_name,sep=""),paste(output_location,"/Data",sep=""))
+file.copy(paste(parent_location,"Taxa/",taxa_file,sep=""),paste(output_location,"/Taxa",sep=""))
+file.copy(paste(parent_location,"OTUs/otu_table.csv",sep=""),paste(output_location,"/OTUs",sep=""))
 ```
 
 #Taxonomy Reference - Expected frequencies
@@ -127,7 +128,7 @@ if(ext_choice=="STD"){
 ```
 
 #OTU Counts by sample
-Determine total OTUs
+#Determine total OTUs
 ```{r}
 
 taxa_Genus_greengenes$Total_OTUs <- rowSums(taxa_Genus_greengenes)
@@ -356,8 +357,6 @@ relabun<-function(taxadb,exptaxadb,metadb){
     
     if(!(is.na(relabun) || is.null(relabun) || relabun==0)){
       relabun_extcont[a,b] <- taxadb[a,b]/taxadb[a,"Total_OTUs"]
-      relabun_extcont[a,"Total_OTUs"]<-taxadb[a,"Total_OTUs"]
-
     } else{
      relabun_extcont[a,b] <- 0
     }
@@ -366,7 +365,6 @@ relabun<-function(taxadb,exptaxadb,metadb){
   
   write.csv(relabun_extcont,paste(output_location,"Data/relabun_extcont_",ext_choice,".csv",sep=""))
   return(relabun_extcont)
-  
 }
 
 #Function for relative abundance - averaged
@@ -407,8 +405,6 @@ relabun_av<-function(db,taxadb,exptaxadb,type,subset){
     rowcount=nrow(relabun_extcont_av)+1
     if(a!="Water"){
       for (b in rownames(exptaxadb)){
-        print(a)
-        print(as.numeric(as.character(exptaxadb[b,a])))
         relabun_extcont_av[rowcount,"Name"]<-paste(a,"expected",sep="_")
         relabun_extcont_av[rowcount,b]<-as.numeric(as.character(exptaxadb[b,a]))
       } 
@@ -426,8 +422,37 @@ relabun_av<-function(db,taxadb,exptaxadb,type,subset){
  
 #Run functions
 relabun_extcont<-relabun(taxa_Genus_greengenes,expected_taxa_Genus,metadata_Genus_greengenes)
-relabun_av(relabun_extcont,taxa_Genus_greengenes,expected_taxa_Genus,"std","Source.Descrip")
+relabun_extcont_av<-relabun_av(relabun_extcont,taxa_Genus_greengenes,expected_taxa_Genus,"std","Source.Descrip")
 relabun_extcont_av<-relabun_av(relabun_extcont,taxa_Genus_greengenes,expected_taxa_Genus,"std","Ext.Kit")
+```
+
+#Plot Rel Abun
+```{r}
+relabun_av_plot<-function(db,type){
+  #Testing
+  #db<-relabun_extcont_av
+  #remove(relabun_extcont_av_plot,db)
+  
+  relabun_extcont_av_plot<-data.frame()
+  
+  for (a in unique(db$Source.Descrip)[unique(db$Source.Descrip)!="Water"&unique(db$Source.Descrip)!="0"]){
+    for (b in rownames(expected_taxa_Genus[expected_taxa_Genus[,a]!='A',])){
+      for (c in unique(relabun_extcont$Ext.Kit)){
+        rowcount<-nrow(relabun_extcont_av_plot)+1
+        relabun_extcont_av_plot[rowcount,"Exp"]<-as.numeric(as.character(expected_taxa_Genus[b,a]))
+        relabun_extcont_av_plot[rowcount,"Obs"]<-db[paste(a,c,sep="_"),b]
+        relabun_extcont_av_plot[rowcount,"Tax"]<-b
+        relabun_extcont_av_plot[rowcount,"Source.Descrip"]<-a
+        relabun_extcont_av_plot[rowcount,"Ext.Kit"]<-c
+      }
+    }
+  }
+  relabun_extcont_av_plot[is.na(relabun_extcont_av_plot)]=0 #replace A's with 0
+  write.csv(relabun_extcont_av_plot,paste(output_location,"Data/relabun_extcont_av_",type,"_plot.csv",sep=""))
+}
+
+relabun_av_plot(relabun_extcont_av,"std")
+
 
 relabun_extcont_avplot_list <- list()
 control_types <- unique(relabun_baseline_extcontrols_otoe$Source.Descrip)
