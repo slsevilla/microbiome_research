@@ -1,0 +1,147 @@
+"""Classify reads by taxon using a fitted classifier
+sklearn: this is a trained classifer.
+
+consensus-blast: Performs BLAST+ local alignment between query and
+reference_reads, then assigns consensus taxonomy to each query sequence
+from among maxaccepts hits, min_consensus of which share that taxonomic
+assignment. Note that maxaccepts selects the first N hits with >
+perc_identity similarity to query, not the top N matches.
+
+consensus-vsearch: Performs VSEARCH global alignment between query and
+reference_reads, then assigns consensus taxonomy to each query sequence
+from among maxaccepts top hits, min_consensus of which share that taxonomic
+assignment. Unlike classify-consensus-blast, this method searches the entire
+reference database before choosing the top N hits, not the first N hits.
+"""
+import os
+import re
+import subprocess
+import sys
+
+# reference the config file
+conf = os.environ.get("conf")
+configfile: conf
+
+pout_dir = config['out_dir'].rstrip('/') + '/'
+exec_dir = config['exec_dir'].rstrip('/') + '/'
+
+de_novo_id = config['de_novo_id']
+closed_id = config['closed_id']
+open_id = config['open_id']
+table_dir = config['table_dir']
+repseq_dir = config['repseq_dir']
+class_dir = config['class_dir'].rstrip('/') + '/'
+
+#Inputs
+filt_list = out_dir + 'input/filt_list.tsv'
+ref_db = out_dir + 'gg_ref.qza'
+ref_in = class_dir + 'gg_13_8_otus/rep_set/99_otus.fasta'
+
+rule all:
+    input:
+        #out_dir + 'table-dn-99.qza', out_dir + 'rep-seqs-dn-99.qza',
+        out_dir + 'table-cr-99.qza', out_dir + 'rep-seqs-cr-99.qza', out_dir + 'unmatched-cr-99.qza', out_dir + 'table-or-99.qza', out_dir + 'rep-seqs-or-99.qza', out_dir + 'new-ref-seqs-or-99.qza'
+
+rule feature_filt:
+    """Filter features that have less than 32 reads
+    VSEARCH will automatically remove features with <32 reads, however, QIIME2 does not do this. When the results are returned to Q2 without these reads, a KEYERROR is received.
+
+    In order to determine which features, use the TABLE QZV and determine which features meet this requirement. Then create a TSV file with these features to pass through as a parameter of exclusion.
+
+    NOTE: Removing features by count (<2 for example) would eliminate too many features that do not meet this criterion and may not even eliminate all of the targeted features.
+    """
+    input:
+        tab_in = table_dir,
+        f_list = filt_list
+    params:
+        min_sam = min_sample
+    output:
+        tab_f = out_dir + "filt_tab.qza"
+    run:
+        shell('qiime feature-table filter-features \
+        --i-table {input.tab_in} \
+        --m-metadata-file {input.f_list} \
+        --p-exclude-ids "True"\
+        --o-filtered-table {output.tab_f}')
+
+rule match_filtfeats:
+    input:
+        tab_f = out_dir + "filt_tab.qza",
+        rep_in = repseq_dir
+    output:
+        rep_f = out_dir + "filt_seq.qza"
+    run:
+        shell('qiime feature-table filter-seqs \
+        --i-data {input.rep_in} \
+        --i-table {input.tab_f} \
+        --o-filtered-data {output.rep_f}')
+
+rule prepare_tax:
+    input:
+        ref_otu = ref_in
+    output:
+        ref_qza = ref_db
+    run:
+        shell('qiime tools import \
+        --type ''FeatureData[Sequence]'' \
+        --input-path {input.ref_otu} \
+        --output-path {output.ref_qza}')
+
+rule vsearch_de_novo:
+    input:
+        tab_f = out_dir + "filt_tab.qza",
+        rep_f = out_dir + "filt_seq.qza"
+    params:
+        dn_id = de_novo_id
+    output:
+        out_tab = out_dir + 'table-dn-99.qza',
+        out_rep = out_dir + 'rep-seqs-dn-99.qza'
+    run:
+        shell('qiime vsearch cluster-features-de-novo \
+          --i-table {input.tab_f} \
+          --i-sequences {input.rep_f} \
+          --p-perc-identity {params.dn_id} \
+          --o-clustered-table {output.out_tab} \
+          --o-clustered-sequences {output.out_rep}')
+
+rule vsearch_closed_ref:
+    input:
+        tab_f = out_dir + "filt_tab.qza",
+        rep_f = out_dir + "filt_seq.qza",
+        ref_qza = ref_db
+    params:
+        cl_id = closed_id
+    output:
+        out_tab = out_dir + 'table-cr-99.qza',
+        out_rep = out_dir + 'rep-seqs-cr-99.qza',
+        out_unmat = out_dir + 'unmatched-cr-99.qza'
+    run:
+      shell('qiime vsearch cluster-features-closed-reference \
+      --i-table {input.tab_f} \
+      --i-sequences {input.rep_f} \
+      --i-reference-sequences {input.ref_qza} \
+      --p-perc-identity {params.cl_id} \
+      --o-clustered-table {output.out_tab} \
+      --o-clustered-sequences {output.out_rep} \
+      --o-unmatched-sequences {output.out_unmat}')
+
+rule vsearch_open_ref:
+    input:
+        tab_f = out_dir + "filt_tab.qza",
+        rep_f = out_dir + "filt_seq.qza",
+        ref_qza = ref_db
+    params:
+        op_id = open_id
+    output:
+        out_tab = out_dir + 'table-or-99.qza',
+        out_rep = out_dir + 'rep-seqs-or-99.qza',
+        out_new = out_dir + 'new-ref-seqs-or-99.qza'
+    run:
+      shell('qiime vsearch cluster-features-open-reference \
+      --i-table {input.tab_f} \
+      --i-sequences {input.rep_f} \
+      --i-reference-sequences {input.ref_qza} \
+      --p-perc-identity {params.op_id} \
+      --o-clustered-table {output.out_tab} \
+      --o-clustered-sequences {output.out_rep} \
+      --o-new-reference-sequences {output.out_new}')
