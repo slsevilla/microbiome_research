@@ -375,7 +375,7 @@ relabun_av<-function(db,taxadb,exptaxadb,type,subset){
   # remove(db,subset,temp,temp2,tempcols,temp3)
 
   #Determine unique subset list
-  relabun_extcont_av<-data.frame()
+  output_db<-data.frame()
   
   #Subset database by control
   for (a in unique(db[,"Source.Descrip"])){
@@ -391,38 +391,38 @@ relabun_av<-function(db,taxadb,exptaxadb,type,subset){
       taxa_list<-unique(append(taxa_list,rownames(exptaxadb)))
       
       if(nrow(temp2)>0){
-        rowcount=nrow(relabun_extcont_av)+1
+        rowcount=nrow(output_db)+1
         for (c in taxa_list){
           temp3<-mean(temp2[,c])
-          relabun_extcont_av[rowcount,"Name"]<-paste(a,b,sep="_")
-          relabun_extcont_av[rowcount,"Subset"]<-b
-          relabun_extcont_av[rowcount,"Source.Descrip"]<-a
-          relabun_extcont_av[rowcount,c]<-temp3
+          output_db[rowcount,"Name"]<-paste(a,b,sep="_")
+          output_db[rowcount,"Subset"]<-b
+          output_db[rowcount,"Source.Descrip"]<-a
+          output_db[rowcount,c]<-temp3
         } 
       }
     }
     
-    rowcount=nrow(relabun_extcont_av)+1
+    rowcount=nrow(output_db)+1
     if(a!="Water"){
       for (b in rownames(exptaxadb)){
-        relabun_extcont_av[rowcount,"Name"]<-paste(a,"expected",sep="_")
-        relabun_extcont_av[rowcount,b]<-as.numeric(as.character(exptaxadb[b,a]))
+        output_db[rowcount,"Name"]<-paste(a,"expected",sep="_")
+        output_db[rowcount,b]<-as.numeric(as.character(exptaxadb[b,a]))
       } 
     }
   }
   
-  relabun_extcont_av[relabun_extcont_av=="A" ]=0 #replace A's with 0
-  relabun_extcont_av[is.na(relabun_extcont_av)]=0 #replace A's with 0
+  output_db[output_db=="A" ]=0 #replace A's with 0
+  output_db[is.na(output_db)]=0 #replace A's with 0
   
-  rownames(relabun_extcont_av)<-relabun_extcont_av$Name
-  relabun_extcont_av<-relabun_extcont_av[,-1]
-  write.csv(relabun_extcont_av,paste(output_location,"Data/relabun_extcont_av_",type,"_",subset,".csv",sep=""))
-  return(relabun_extcont_av)
+  rownames(output_db)<-output_db$Name
+  output_db<-output_db[,-1]
+  write.csv(output_db,paste(output_location,"Data/relabun_extcont_av_",type,"_",subset,".csv",sep=""))
+  return(output_db)
 }
  
 #Run functions
 relabun_extcont<-relabun(taxa_Genus_greengenes,expected_taxa_Genus,metadata_Genus_greengenes)
-relabun_extcont_av<-relabun_av(relabun_extcont,taxa_Genus_greengenes,expected_taxa_Genus,"std","Source.Descrip")
+relabun_av(relabun_extcont,taxa_Genus_greengenes,expected_taxa_Genus,"std","Source.Descrip")
 relabun_extcont_av<-relabun_av(relabun_extcont,taxa_Genus_greengenes,expected_taxa_Genus,"std","Ext.Kit")
 ```
 
@@ -433,41 +433,52 @@ relabun_av_plot<-function(db,type){
   #db<-relabun_extcont_av
   #remove(relabun_extcont_av_plot,db)
   
-  relabun_extcont_av_plot<-data.frame()
+  output_db<-data.frame()
   
   for (a in unique(db$Source.Descrip)[unique(db$Source.Descrip)!="Water"&unique(db$Source.Descrip)!="0"]){
     for (b in rownames(expected_taxa_Genus[expected_taxa_Genus[,a]!='A',])){
       for (c in unique(relabun_extcont$Ext.Kit)){
-        rowcount<-nrow(relabun_extcont_av_plot)+1
-        relabun_extcont_av_plot[rowcount,"Exp"]<-as.numeric(as.character(expected_taxa_Genus[b,a]))
-        relabun_extcont_av_plot[rowcount,"Obs"]<-db[paste(a,c,sep="_"),b]
-        relabun_extcont_av_plot[rowcount,"Tax"]<-b
-        relabun_extcont_av_plot[rowcount,"Source.Descrip"]<-a
-        relabun_extcont_av_plot[rowcount,"Ext.Kit"]<-c
+        rowcount<-nrow(output_db)+1
+        output_db[rowcount,"Exp"]<-as.numeric(as.character(expected_taxa_Genus[b,a]))
+        output_db[rowcount,"Obs"]<-db[paste(a,c,sep="_"),b]
+        output_db[rowcount,"%Dif"]<-(output_db[rowcount,"Exp"]-output_db[rowcount,"Obs"])/output_db[rowcount,"Exp"]
+        output_db[rowcount,"Tax"]<-b
+        output_db[rowcount,"Source.Descrip"]<-a
+        output_db[rowcount,"Ext.Kit"]<-c
       }
     }
   }
-  relabun_extcont_av_plot[is.na(relabun_extcont_av_plot)]=0 #replace A's with 0
-  write.csv(relabun_extcont_av_plot,paste(output_location,"Data/relabun_extcont_av_",type,"_plot.csv",sep=""))
+  output_db[is.na(output_db)]=0 #replace A's with 0
+  write.csv(output_db,paste(output_location,"Data/relabun_extcont_av_",type,"_plot.csv",sep=""))
+  return(output_db)
 }
 
-relabun_av_plot(relabun_extcont_av,"std")
+relabun_extcont_av_plot<-relabun_av_plot(relabun_extcont_av,"std")
 
 ```
 
-
-#7 Relative Abundance % Difference
+#Cosine Similarity
 ```{r}
-#convert rows to numeric values
- relabun_baseline_extcontrols_otoe$RelAbun_Obs<-as.numeric(as.character(relabun_baseline_extcontrols_otoe$RelAbun_Obs))
- relabun_baseline_extcontrols_otoe$RelAbun_Exp<-as.numeric(as.character(relabun_baseline_extcontrols_otoe$RelAbun_Exp))
-
-for (a in rownames(relabun_baseline_extcontrols_otoe)){
- relabun_baseline_extcontrols_otoe[a,"PDiff"]<-((relabun_baseline_extcontrols_otoe[a,"RelAbun_Obs"]-relabun_baseline_extcontrols_otoe[a,"RelAbun_Exp"])/relabun_baseline_extcontrols_otoe[a,"RelAbun_Exp"])*100
+cosine_sim<-function(db,subset,type){
+  
+  output_db<-data.frame()
+  
+  for (a in unique(db$Source.Descrip)){
+    temp<-db[db[,"Source.Descrip"]==a,]
+    
+    for (b in unique(temp[,subset])){
+      temp2<-temp[temp[,subset]==b,]
+      
+      output_db[nrow(output_db)+1,"CosSim"]<-as.numeric(as.character(cosine(temp2$Obs,temp2$Exp)))
+      output_db[nrow(output_db),subset]<-b
+      output_db[nrow(output_db),"Source.Descrip"]<-a
+    }
+  }
+  write.csv(output_db,paste(output_location,"Data/cosine_sim_",type,"_",subset,".csv",sep=""))
+  output_db
 }
 
-write.csv(relabun_baseline_extcontrols_otoe,paste(project_location,"\\Output\\R\\Data\\Baseline\\relabun_baseline_extcontrols_otoe.csv",sep=""))
-
+cosine_sim(relabun_extcont_av_plot,"Ext.Kit","std")
 ```
 
 #8 Alpha Diversity of Homo Methods

@@ -1,17 +1,11 @@
-"""Classify reads by taxon using a fitted classifier
-sklearn: this is a trained classifer.
+"""Group reads to OTU's
+Use three methods to group reads into OTU's, using an assigned level of similarity
 
-consensus-blast: Performs BLAST+ local alignment between query and
-reference_reads, then assigns consensus taxonomy to each query sequence
-from among maxaccepts hits, min_consensus of which share that taxonomic
-assignment. Note that maxaccepts selects the first N hits with >
-perc_identity similarity to query, not the top N matches.
+de novo
 
-consensus-vsearch: Performs VSEARCH global alignment between query and
-reference_reads, then assigns consensus taxonomy to each query sequence
-from among maxaccepts top hits, min_consensus of which share that taxonomic
-assignment. Unlike classify-consensus-blast, this method searches the entire
-reference database before choosing the top N hits, not the first N hits.
+closed-reference
+
+open-reference
 """
 import os
 import re
@@ -37,7 +31,7 @@ filt_list = out_dir + 'input/filt_list.tsv'
 #ref_in = class_dir + 'gg_13_8_otus/rep_set/99_otus.fasta'
 #ref_db = out_dir + 'gg_ref.qza'
 
-REF_DB = ['gg_13_8_otus/rep_set/99_otus.fasta']
+REF_DB = ['gg_13_8_otus/rep_set/99_otus.fasta', 'SILVA_132_QIIME_release/rep_set/rep_set_16S_only/99/silva_132_99_16S.fna']
 
 refDict = {}
 for i in REF_DB:
