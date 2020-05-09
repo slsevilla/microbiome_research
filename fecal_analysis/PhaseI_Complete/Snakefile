@@ -1,11 +1,16 @@
-"""Group reads to OTU's
+"""Performing grouping and taxonomic taxonomic_classification
+
+*Grouping reads to OTU's
 Use three methods to group reads into OTU's, using an assigned level of similarity
+- de novo
+- closed-reference
+- open-reference
 
-de novo
-
-closed-reference
-
-open-reference
+*Taxonomic classification
+Use three methods to classify the taxonomic classes
+- BLAST+
+- VSEARCH
+- de novo
 """
 import os
 import re
@@ -19,25 +24,29 @@ configfile: conf
 out_dir = config['out_dir'].rstrip('/') + '/'
 exec_dir = config['exec_dir'].rstrip('/') + '/'
 
+table_dir = config['table_dir']
+repseq_dir = config['repseq_dir']
+rawref_dir = config['raw_ref_dir'].rstrip('/') + '/'
+filt_file = config['filt_file_dir']
+clust_dir = config['clust_dir']
+tax_dir = config['tax_dir']
+
 de_novo_id = config['de_novo_id']
 closed_id = config['closed_id']
 open_id = config['open_id']
-table_dir = config['table_dir']
-repseq_dir = config['repseq_dir']
-class_dir = config['class_dir'].rstrip('/') + '/'
 
 #Inputs
-filt_list = out_dir + 'input/filt_list.tsv'
-#ref_in = class_dir + 'gg_13_8_otus/rep_set/99_otus.fasta'
-#ref_db = out_dir + 'gg_ref.qza'
+
+#ref_in = rawref_dir + 'gg_13_8_otus/rep_set/99_otus.fasta'
+#ref_db = clust_dir + 'gg_ref.qza'
 
 REF_DB = ['gg_13_8_otus/rep_set/99_otus.fasta', 'SILVA_132_QIIME_release/rep_set/rep_set_16S_only/99/silva_132_99_16S.fna']
 
 refDict = {}
 for i in REF_DB:
-    refFile = os.path.basename(class_dir + i)
+    refFile = os.path.basename(rawref_dir + i)
     refNoExt = i.split('_')[0]
-    refDict[refNoExt] = (class_dir + i)
+    refDict[refNoExt] = (rawref_dir + i)
 
 def get_ref_full_path(wildcards):
     """
@@ -47,14 +56,14 @@ def get_ref_full_path(wildcards):
 
 rule all:
     input:
-        expand(out_dir + 'output/table_dn_{ref}_{de_novo_id}.qza', de_novo_id=de_novo_id, ref=refDict.keys()),
-        expand(out_dir + 'output/rep-seqs_dn_{ref}_{de_novo_id}.qza', de_novo_id=de_novo_id, ref=refDict.keys()),
-        expand(out_dir + 'output/table_cl_{ref}_{closed_id}.qza', closed_id=closed_id, ref=refDict.keys()),
-        expand(out_dir + 'output/rep-seqs_cl_{ref}_{closed_id}.qza', closed_id=closed_id, ref=refDict.keys()),
-        expand(out_dir + 'output/unmatched_cl_{ref}_{closed_id}.qza', closed_id=closed_id, ref=refDict.keys()),
-        expand(out_dir + 'output/table_op_{ref}_{open_id}.qza', open_id=closed_id, ref=refDict.keys()),
-        expand(out_dir + 'output/rep-seqs_op_{ref}_{open_id}.qza', open_id=closed_id, ref=refDict.keys()),
-        expand(out_dir + 'output/new_op_{ref}_{open_id}.qza', open_id=closed_id, ref=refDict.keys())
+        expand(clust_dir + 'output/table_dn_{ref}_{de_novo_id}.qza', de_novo_id=de_novo_id, ref=refDict.keys()),
+        expand(clust_dir + 'output/rep-seqs_dn_{ref}_{de_novo_id}.qza', de_novo_id=de_novo_id, ref=refDict.keys()),
+        expand(clust_dir + 'output/table_cl_{ref}_{closed_id}.qza', closed_id=closed_id, ref=refDict.keys()),
+        expand(clust_dir + 'output/rep-seqs_cl_{ref}_{closed_id}.qza', closed_id=closed_id, ref=refDict.keys()),
+        expand(clust_dir + 'output/unmatched_cl_{ref}_{closed_id}.qza', closed_id=closed_id, ref=refDict.keys()),
+        expand(clust_dir + 'output/table_op_{ref}_{open_id}.qza', open_id=closed_id, ref=refDict.keys()),
+        expand(clust_dir + 'output/rep-seqs_op_{ref}_{open_id}.qza', open_id=closed_id, ref=refDict.keys()),
+        expand(clust_dir + 'output/new_op_{ref}_{open_id}.qza', open_id=closed_id, ref=refDict.keys())
 
 rule feature_filt:
     """Filter features that have less than 32 reads
@@ -66,9 +75,9 @@ rule feature_filt:
     """
     input:
         tab_in = table_dir,
-        f_list = filt_list
+        f_list = filt_file
     output:
-        tab_f = out_dir + "output/filt_tab.qza"
+        tab_f = clust_dir + "output/filt_tab.qza"
     run:
         shell('qiime feature-table filter-features \
         --i-table {input.tab_in} \
@@ -81,10 +90,10 @@ rule seq_filt:
     Rep-seqs must match features with the feature-table. Since features were filtered with rule above, this rule will remove those features from the rep-seq list.
     """
     input:
-        tab_f = out_dir + "output/filt_tab.qza",
+        tab_f = clust_dir + "output/filt_tab.qza",
         rep_in = repseq_dir
     output:
-        rep_f = out_dir + "output/filt_seq.qza"
+        rep_f = clust_dir + "output/filt_seq.qza"
     run:
         shell('qiime feature-table filter-seqs \
         --i-data {input.rep_in} \
@@ -98,7 +107,7 @@ rule create_ref:
     input:
         ref = get_ref_full_path
     output:
-        out_dir + 'output/refdb_{ref}.qza'
+        clust_dir + 'output/refdb_{ref}.qza'
     run:
         shell('qiime tools import \
         --type ''FeatureData[Sequence]'' \
@@ -107,13 +116,13 @@ rule create_ref:
 
 rule vsearch_de_novo:
     input:
-        tab_f = out_dir + "output/filt_tab.qza",
-        rep_f = out_dir + "output/filt_seq.qza"
+        tab_f = clust_dir + "output/filt_tab.qza",
+        rep_f = clust_dir + "output/filt_seq.qza"
     params:
         dn_id = de_novo_id
     output:
-        out_tab = out_dir + 'output/table_dn_{ref}_{de_novo_id}.qza',
-        out_rep = out_dir + 'output/rep-seqs_dn_{ref}_{de_novo_id}.qza'
+        out_tab = clust_dir + 'output/table_dn_{ref}_{de_novo_id}.qza',
+        out_rep = clust_dir + 'output/rep-seqs_dn_{ref}_{de_novo_id}.qza'
     run:
         shell('qiime vsearch cluster-features-de-novo \
         --i-table {input.tab_f} \
@@ -124,15 +133,15 @@ rule vsearch_de_novo:
 
 rule vsearch_closed_ref:
     input:
-        tab_f = out_dir + "output/filt_tab.qza",
-        rep_f = out_dir + "output/filt_seq.qza",
-        ref_qza = out_dir + "output/refdb_{ref}.qza"
+        tab_f = clust_dir + "output/filt_tab.qza",
+        rep_f = clust_dir + "output/filt_seq.qza",
+        ref_qza = clust_dir + "output/refdb_{ref}.qza"
     params:
         cl_id = closed_id
     output:
-        out_tab = out_dir + 'output/table_cl_{ref}_{closed_id}.qza',
-        out_rep = out_dir + 'output/rep-seqs_cl_{ref}_{closed_id}.qza',
-        out_unmat = out_dir + 'output/unmatched_cl_{ref}_{closed_id}.qza'
+        out_tab = clust_dir + 'output/table_cl_{ref}_{closed_id}.qza',
+        out_rep = clust_dir + 'output/rep-seqs_cl_{ref}_{closed_id}.qza',
+        out_unmat = clust_dir + 'output/unmatched_cl_{ref}_{closed_id}.qza'
     run:
         shell('qiime vsearch cluster-features-closed-reference \
         --i-table {input.tab_f} \
@@ -145,15 +154,15 @@ rule vsearch_closed_ref:
 
 rule vsearch_open_ref:
     input:
-        tab_f = out_dir + "output/filt_tab.qza",
-        rep_f = out_dir + "output/filt_seq.qza",
-        ref_qza = out_dir + "output/refdb_{ref}.qza"
+        tab_f = clust_dir + "output/filt_tab.qza",
+        rep_f = clust_dir + "output/filt_seq.qza",
+        ref_qza = clust_dir + "output/refdb_{ref}.qza"
     params:
         op_id = open_id
     output:
-        out_tab = out_dir + 'output/table_op_{ref}_{open_id}.qza',
-        out_rep = out_dir + 'output/rep-seqs_op_{ref}_{open_id}.qza',
-        out_new = out_dir + 'output/new_op_{ref}_{open_id}.qza'
+        out_tab = clust_dir + 'output/table_op_{ref}_{open_id}.qza',
+        out_rep = clust_dir + 'output/rep-seqs_op_{ref}_{open_id}.qza',
+        out_new = clust_dir + 'output/new_op_{ref}_{open_id}.qza'
     run:
         shell('qiime vsearch cluster-features-open-reference \
         --i-table {input.tab_f} \

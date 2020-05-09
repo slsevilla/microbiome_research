@@ -6,16 +6,22 @@
 #     B. Ballew
 
 ## Manifest
-metadata_manifest: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/20200505_otuclustering/manifest.txt'
+metadata_manifest: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/otuclustering/manifest.txt'
 
 ## Directories
-out_dir: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/20200505_otuclustering/proj_data/'
+out_dir: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/'
 exec_dir: '/DCEG/CGF/Bioinformatics/Production/Sam/dev/QIIME_pipeline'
 fastq_abs_path: '/DCEG/CGF/Sequencing/Illumina/MiSeq/PostRun_Analysis/Data'  # internal runs only
 temp_dir: '/DCEG/CGF/Bioinformatics/Production/Sam/scratch'
+
 table_dir:  '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/20200410_2019.1/denoising/feature_tables/merged.qza'
 repseq_dir: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/20200410_2019.1/denoising/sequence_tables/merged.qza'
-class_dir: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/20200505_otuclustering/train_classifier'
+
+clust_dir: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/otuclustering/proj_data/'
+raw_ref_dir: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/otuclustering/train_classifier'
+filt_file_dir: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/otuclustering/proj_data/input/filt_list.tsv'
+
+tax_dir: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/taxclass/proj_data'
 
 ## Run type
 data_source: 'internal'  # 'external' or 'internal' (to CGR)
@@ -46,7 +52,7 @@ closed_id: 0.99
 open_id: 0.99
 
 ## Cluster submission parameters
-cluster_mode: 'qsub -q long.q -V -j y -S /bin/bash -o /DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/20200505_otuclustering/proj_data/logs -pe by_node {threads}'  # options are 'qsub/sbatch/etc ...', 'local', 'dryrun', 'unlock'
+cluster_mode: 'qsub -q long.q -V -j y -S /bin/bash -o /DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/otuclustering/proj_data/logs -pe by_node {threads}'  # options are 'qsub/sbatch/etc ...', 'local', 'dryrun', 'unlock'
 #cluster_mode: 'unlock'
   # SGE example:    qsub -q myqueue.q -V -j y -S /bin/bash -o /path/to/project/directory/logs/ -pe by_node {threads}
   # slurm example:  sbatch --mem=64g --time=24:00:00 --output=/path/to/project/directory/logs/slurm-%j.out --cpus-per-task={threads}
