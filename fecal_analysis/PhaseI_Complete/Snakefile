@@ -9,8 +9,20 @@ Use three methods to group reads into OTU's, using an assigned level of similari
 *Taxonomic classification
 Use three methods to classify the taxonomic classes
 - BLAST+
+    - consensus-blast: Performs BLAST+ local alignment between query and
+    reference_reads, then assigns consensus taxonomy to each query sequence
+    from among maxaccepts hits, min_consensus of which share that taxonomic
+    assignment. Note that maxaccepts selects the first N hits with >
+    perc_identity similarity to query, not the top N matches.
 - VSEARCH
-- de novo
+    - consensus-vsearch: Performs VSEARCH global alignment between query and
+    reference_reads, then assigns consensus taxonomy to each query sequence
+    from among maxaccepts top hits, min_consensus of which share that taxonomic
+    assignment. Unlike classify-consensus-blast, this method searches the entire
+    reference database before choosing the top N hits, not the first N hits.
+- sci-kit learn
+
+https://docs.qiime2.org/2019.4/plugins/available/feature-classifier/
 """
 import os
 import re
@@ -23,30 +35,63 @@ configfile: conf
 
 out_dir = config['out_dir'].rstrip('/') + '/'
 exec_dir = config['exec_dir'].rstrip('/') + '/'
+REF_DB = config['reference_db']
 
 table_dir = config['table_dir']
 repseq_dir = config['repseq_dir']
 rawref_dir = config['raw_ref_dir'].rstrip('/') + '/'
 filt_file = config['filt_file_dir']
-clust_dir = config['clust_dir']
-tax_dir = config['tax_dir']
+clust_dir = config['clust_dir'].rstrip('/') + '/'
+tax_dir = config['tax_dir'].rstrip('/') + '/'
 
 de_novo_id = config['de_novo_id']
 closed_id = config['closed_id']
 open_id = config['open_id']
 
-#Inputs
+#Raw References
+RAW_REF_DB = ['gg_13_8_otus/rep_set/99_otus.fasta', 'SILVA_132_QIIME_release/rep_set/rep_set_16S_only/99/silva_132_99_16S.fna']
 
-#ref_in = rawref_dir + 'gg_13_8_otus/rep_set/99_otus.fasta'
-#ref_db = clust_dir + 'gg_ref.qza'
-
-REF_DB = ['gg_13_8_otus/rep_set/99_otus.fasta', 'SILVA_132_QIIME_release/rep_set/rep_set_16S_only/99/silva_132_99_16S.fna']
-
-refDict = {}
-for i in REF_DB:
+raw_refDict = {}
+for i in RAW_REF_DB:
     refFile = os.path.basename(rawref_dir + i)
     refNoExt = i.split('_')[0]
-    refDict[refNoExt] = (rawref_dir + i)
+    raw_refDict[refNoExt] = (rawref_dir + i)
+
+def get_rawref_full_path(wildcards):
+    """
+    """
+    (refFullPath) = raw_refDict[wildcards.ref]
+    return refFullPath
+
+#Groupings for OTU clustering
+READ_GRP=['cl','op','dn']
+REF_GRP=['gg','SILVA']
+
+readDict = {}
+for a in READ_GRP:
+    for b in REF_GRP:
+        seqFile = clust_dir + "output/rep-seqs_" + a + "_" + b + "_0.99.qza"
+        tabFile = clust_dir + "output/table_" + a + "_" + b + "_0.99.qza"
+        readDict[a + b] = ([seqFile],[tabFile])
+
+def get_seq_full_path(wildcards):
+    """
+    """
+    (seqFile,tabFile) = readDict[wildcards.read]
+    return seqFile
+
+def get_tab_full_path(wildcards):
+    """
+    """
+    (seqFile,tabFile) = readDict[wildcards.tab]
+    return tabFile
+
+#Trained references
+refDict = {}
+for i in REF_DB:
+    refFile = os.path.basename(i)
+    refNoExt = i.split('/')[8].split('-')[0]
+    refDict[refNoExt] = (i)
 
 def get_ref_full_path(wildcards):
     """
@@ -56,14 +101,14 @@ def get_ref_full_path(wildcards):
 
 rule all:
     input:
-        expand(clust_dir + 'output/table_dn_{ref}_{de_novo_id}.qza', de_novo_id=de_novo_id, ref=refDict.keys()),
-        expand(clust_dir + 'output/rep-seqs_dn_{ref}_{de_novo_id}.qza', de_novo_id=de_novo_id, ref=refDict.keys()),
-        expand(clust_dir + 'output/table_cl_{ref}_{closed_id}.qza', closed_id=closed_id, ref=refDict.keys()),
-        expand(clust_dir + 'output/rep-seqs_cl_{ref}_{closed_id}.qza', closed_id=closed_id, ref=refDict.keys()),
-        expand(clust_dir + 'output/unmatched_cl_{ref}_{closed_id}.qza', closed_id=closed_id, ref=refDict.keys()),
-        expand(clust_dir + 'output/table_op_{ref}_{open_id}.qza', open_id=closed_id, ref=refDict.keys()),
-        expand(clust_dir + 'output/rep-seqs_op_{ref}_{open_id}.qza', open_id=closed_id, ref=refDict.keys()),
-        expand(clust_dir + 'output/new_op_{ref}_{open_id}.qza', open_id=closed_id, ref=refDict.keys())
+        expand(clust_dir + 'output/table_dn_{ref}_{de_novo_id}.qza', de_novo_id=de_novo_id, ref=raw_refDict.keys()),
+        expand(clust_dir + 'output/rep-seqs_dn_{ref}_{de_novo_id}.qza', de_novo_id=de_novo_id, ref=raw_refDict.keys()),
+        expand(clust_dir + 'output/table_cl_{ref}_{closed_id}.qza', closed_id=closed_id, ref=raw_refDict.keys()),
+        expand(clust_dir + 'output/rep-seqs_cl_{ref}_{closed_id}.qza', closed_id=closed_id, ref=raw_refDict.keys()),
+        expand(clust_dir + 'output/unmatched_cl_{ref}_{closed_id}.qza', closed_id=closed_id, ref=raw_refDict.keys()),
+        expand(clust_dir + 'output/table_op_{ref}_{open_id}.qza', open_id=closed_id, ref=raw_refDict.keys()),
+        expand(clust_dir + 'output/rep-seqs_op_{ref}_{open_id}.qza', open_id=closed_id, ref=raw_refDict.keys()),
+        expand(clust_dir + 'output/new_op_{ref}_{open_id}.qza', open_id=closed_id, ref=raw_refDict.keys()), expand(tax_dir + 'output/scikit' + '_{seq}_{ref}.qza', seq=readDict.keys(), ref=refDict.keys())
 
 rule feature_filt:
     """Filter features that have less than 32 reads
@@ -105,7 +150,7 @@ rule create_ref:
     used unaligned reads for this
     """
     input:
-        ref = get_ref_full_path
+        ref = get_rawref_full_path
     output:
         clust_dir + 'output/refdb_{ref}.qza'
     run:
@@ -172,3 +217,15 @@ rule vsearch_open_ref:
         --o-clustered-table {output.out_tab} \
         --o-clustered-sequences {output.out_rep} \
         --o-new-reference-sequences {output.out_new}')
+
+rule scikit_learn:
+    input:
+        ref = get_ref_full_path,
+        seq = get_seq_full_path
+    output:
+        tax_dir + 'output/scikit' + '_{seq}_{ref}.qza'
+    run:
+        shell('qiime feature-classifier classify-sklearn \
+            --i-classifier {input.ref} \
+            --i-reads {input.seq} \
+            --o-classification {output}')

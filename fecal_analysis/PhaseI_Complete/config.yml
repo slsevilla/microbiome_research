@@ -21,7 +21,7 @@ clust_dir: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/otuclustering/p
 raw_ref_dir: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/otuclustering/train_classifier'
 filt_file_dir: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/otuclustering/proj_data/input/filt_list.tsv'
 
-tax_dir: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/taxclass/proj_data'
+tax_dir: '/DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/taxclass/proj_data/'
 
 ## Run type
 data_source: 'internal'  # 'external' or 'internal' (to CGR)
@@ -46,7 +46,7 @@ max_depth: 54000
 classify_method: 'classify-sklearn'
 reference_db:  # change based on qiime version
 - '/DCEG/CGF/Bioinformatics/Production/Bari/refDatabases/scikit_0.20.2_q2_2019.1/gg-13-8-99-nb-classifier.qza'
-#- '/DCEG/CGF/Bioinformatics/Production/Bari/refDatabases/scikit_0.20.2_q2_2019.1/silva-132-99-nb-classifier.qza'
+- '/DCEG/CGF/Bioinformatics/Production/Bari/refDatabases/scikit_0.20.2_q2_2019.1/silva-132-99-nb-classifier.qza'
 de_novo_id: 0.99
 closed_id: 0.99
 open_id: 0.99
