@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # CGR QIIME2 pipeline for microbiome analysis.
-# 
+#
 # AUTHORS:
 #     S. Sevilla Chill
 #     W. Zhou
 #     B. Ballew
-# 
+#
 # TO RUN:
 #     Have perl and conda in $PATH
 #     Have QIIME2 conda environment set up as in Q2 docs
@@ -19,7 +19,7 @@ set -euo pipefail
 unset module
 
 # cluster:
-cmd="qsub -q long.q -V -j y -S /bin/sh -o ${PWD} /DCEG/CGF/Bioinformatics/Production/Sam/dev/QIIME_pipeline/Q2_wrapper_test.sh ${PWD}/config.yml"
+cmd="qsub -q long.q -V -j y -S /bin/sh -o ${PWD} /DCEG/Projects/Microbiome/Analysis/Project_NP0084_MB/aim1/Q2_wrapper_test.sh ${PWD}/config.yml"
 echo "Command run: $cmd"
 eval "$cmd"
 
@@ -27,4 +27,3 @@ eval "$cmd"
 # cmd="bash /DCEG/CGF/Bioinformatics/Production/Bari/QIIME_pipeline/Q2_wrapper.sh ${PWD}/config.yml"
 # echo "Command run: $cmd"
 # eval $cmd
-
